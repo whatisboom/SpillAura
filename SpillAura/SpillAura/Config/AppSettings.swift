@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 class AppSettings: ObservableObject {
     @Published var showMenuBarIcon: Bool {
