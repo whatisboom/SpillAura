@@ -122,6 +122,10 @@ struct SetupView: View {
                         EntertainmentGroupPicker(credentials: creds, auth: auth)
                             .padding(4)
                     }
+
+                    Label("Setup complete — use the menu bar icon to control your lights.", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.callout)
                 }
 
                 Spacer()
@@ -131,8 +135,11 @@ struct SetupView: View {
         .frame(width: 480, height: 520)
         .onAppear {
             discovery.startDiscovery()
-            credentials = auth.loadFromKeychain()
-            if credentials != nil { pairingState = .success }
+            if let creds = auth.loadFromKeychain() {
+                credentials = creds
+                selectedBridgeIP = creds.bridgeIP
+                pairingState = .success
+            }
         }
         .onDisappear {
             discovery.stopDiscovery()

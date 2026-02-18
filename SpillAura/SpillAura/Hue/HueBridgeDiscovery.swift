@@ -23,6 +23,12 @@ class HueBridgeDiscovery: NSObject, ObservableObject {
         netBrowser = NetServiceBrowser()
         netBrowser?.delegate = self
         netBrowser?.searchForServices(ofType: "_hue._tcp.", inDomain: "local.")
+
+        // Stop the spinner after 4 seconds — browser continues running silently
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+            self.isSearching = false
+        }
     }
 
     func stopDiscovery() {
