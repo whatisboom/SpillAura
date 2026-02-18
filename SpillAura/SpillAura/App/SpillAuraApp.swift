@@ -6,13 +6,13 @@ struct SpillAuraApp: App {
     @StateObject private var syncController = SyncController()
 
     var body: some Scene {
-        MenuBarExtra("SpillAura", systemImage: "light.max") {
+        MenuBarExtra("SpillAura", systemImage: "sun.max") {
             MenuBarView()
                 .environmentObject(syncController)
         }
         .menuBarExtraStyle(.window)
 
-        Window("SpillAura", id: "main") {
+        WindowGroup("SpillAura", id: "main") {
             MainWindow()
                 .environmentObject(syncController)
         }
