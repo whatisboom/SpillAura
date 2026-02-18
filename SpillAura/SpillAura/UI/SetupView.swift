@@ -162,6 +162,7 @@ struct EntertainmentGroupPicker: View {
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
     @AppStorage("entertainmentGroupID") private var storedGroupID: String = ""
+    @AppStorage("entertainmentChannelCount") private var storedChannelCount: Int = 1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -181,6 +182,7 @@ struct EntertainmentGroupPicker: View {
                     Button(action: {
                         selectedGroupID = group.id
                         storedGroupID = group.id
+                        storedChannelCount = group.channelCount
                     }) {
                         HStack {
                             Image(systemName: selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
@@ -201,6 +203,7 @@ struct EntertainmentGroupPicker: View {
                 selectedGroupID = storedGroupID.isEmpty ? groups.first?.id : storedGroupID
                 if let first = groups.first, storedGroupID.isEmpty {
                     storedGroupID = first.id
+                    storedChannelCount = first.channelCount
                 }
                 isLoading = false
             } catch {
