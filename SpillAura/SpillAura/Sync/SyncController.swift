@@ -89,7 +89,12 @@ class SyncController: ObservableObject {
     private func handleSessionState(_ state: EntertainmentSession.State) {
         switch state {
         case .idle:
-            connectionStatus = .disconnected
+            // Check for error BEFORE clearing session so we can surface it
+            if let errorMessage = session?.lastError {
+                connectionStatus = .error(errorMessage)
+            } else {
+                connectionStatus = .disconnected
+            }
             isRunning = false
             session = nil
             sessionStateCancellable = nil
@@ -119,8 +124,8 @@ class SyncController: ObservableObject {
             connectionStatus = .disconnected
         }
 
-        // Surface session errors
-        if let errorMessage = session?.lastError {
+        // Surface session errors for non-idle states
+        if case .idle = state { } else if let errorMessage = session?.lastError {
             connectionStatus = .error(errorMessage)
         }
     }

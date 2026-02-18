@@ -108,6 +108,8 @@ final class EntertainmentSession: ObservableObject {
 
     private func putAction(_ action: String) async throws {
         let urlString = "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration/\(groupID)"
+        print("[EntertainmentSession] PUT \(action) → \(urlString)")
+        print("[EntertainmentSession] username: \(credentials.username.prefix(8))… groupID: \(groupID)")
         guard let url = URL(string: urlString) else {
             throw URLError(.badURL)
         }
@@ -123,13 +125,15 @@ final class EntertainmentSession: ObservableObject {
             delegate: SessionSelfSignedCertDelegate(),
             delegateQueue: nil
         )
-        let (_, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        print("[EntertainmentSession] PUT \(action) response: HTTP \(statusCode)")
+        print("[EntertainmentSession] response body: \(String(data: data, encoding: .utf8) ?? "nil")")
 
         guard let http = response as? HTTPURLResponse,
               (200...299).contains(http.statusCode) else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
             throw URLError(.badServerResponse, userInfo: [
-                NSLocalizedDescriptionKey: "PUT \(action) returned HTTP \(code)"
+                NSLocalizedDescriptionKey: "PUT \(action) returned HTTP \(statusCode)"
             ])
         }
     }
