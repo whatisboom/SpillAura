@@ -1,96 +1,75 @@
 import Foundation
-import Network
 import Combine
 
 @MainActor
-class HueBridgeDiscovery: ObservableObject {
+class HueBridgeDiscovery: NSObject, ObservableObject {
     @Published var discoveredBridges: [DiscoveredBridge] = []
     @Published var isSearching = false
 
-    private var browser: NWBrowser?
+    private var netBrowser: NetServiceBrowser?
+    private var resolvingServices: [NetService] = []
 
     struct DiscoveredBridge: Identifiable, Equatable {
         let id = UUID()
         let name: String
-        let host: String
+        let host: String  // hostname (e.g. "Living-Room.local") or IP
     }
 
     func startDiscovery() {
         isSearching = true
         discoveredBridges = []
+        resolvingServices = []
 
-        let params = NWParameters()
-        params.includePeerToPeer = false
-
-        browser = NWBrowser(
-            for: .bonjourWithTXTRecord(type: "_hue._tcp", domain: "local."),
-            using: params
-        )
-
-        browser?.stateUpdateHandler = { [weak self] state in
-            switch state {
-            case .failed(let error):
-                print("mDNS browser failed: \(error)")
-                Task { @MainActor [weak self] in
-                    self?.isSearching = false
-                }
-            default:
-                break
-            }
-        }
-
-        browser?.browseResultsChangedHandler = { [weak self] results, _ in
-            Task { @MainActor [weak self] in
-                self?.handleResults(results)
-            }
-        }
-
-        browser?.start(queue: .main)
+        netBrowser = NetServiceBrowser()
+        netBrowser?.delegate = self
+        netBrowser?.searchForServices(ofType: "_hue._tcp.", inDomain: "local.")
     }
 
     func stopDiscovery() {
-        browser?.cancel()
-        browser = nil
+        netBrowser?.stop()
+        netBrowser = nil
+        for service in resolvingServices { service.stop() }
+        resolvingServices = []
         isSearching = false
     }
+}
 
-    private func handleResults(_ results: Set<NWBrowser.Result>) {
-        for result in results {
-            if case let .service(name, _, _, _) = result.endpoint {
-                let endpoint = result.endpoint
-                resolveEndpoint(endpoint, name: name) { [weak self] host in
-                    guard let host else { return }
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        let bridge = DiscoveredBridge(name: name, host: host)
-                        if !self.discoveredBridges.contains(bridge) {
-                            self.discoveredBridges.append(bridge)
-                        }
-                    }
-                }
+extension HueBridgeDiscovery: NetServiceBrowserDelegate {
+    nonisolated func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
+        service.delegate = self
+        service.resolve(withTimeout: 5)
+        Task { @MainActor in
+            self.resolvingServices.append(service)
+        }
+    }
+
+    nonisolated func netServiceBrowserDidStopSearch(_ browser: NetServiceBrowser) {
+        Task { @MainActor in
+            self.isSearching = false
+        }
+    }
+}
+
+extension HueBridgeDiscovery: NetServiceDelegate {
+    nonisolated func netServiceDidResolveAddress(_ sender: NetService) {
+        guard let hostName = sender.hostName else { return }
+        // Strip trailing dot from hostname (e.g. "Living-Room.local." → "Living-Room.local")
+        let cleanHost = hostName.hasSuffix(".") ? String(hostName.dropLast()) : hostName
+        let name = sender.name
+        sender.stop()
+        Task { @MainActor in
+            self.resolvingServices.removeAll { $0 === sender }
+            let bridge = DiscoveredBridge(name: name, host: cleanHost)
+            if !self.discoveredBridges.contains(bridge) {
+                self.discoveredBridges.append(bridge)
             }
         }
     }
 
-    private func resolveEndpoint(_ endpoint: NWEndpoint, name: String, completion: @escaping (String?) -> Void) {
-        let connection = NWConnection(to: endpoint, using: .tcp)
-        connection.stateUpdateHandler = { state in
-            if case .ready = state {
-                if let remote = connection.currentPath?.remoteEndpoint,
-                   case let .hostPort(host, _) = remote {
-                    let hostString = "\(host)"
-                    // Strip interface suffix if present (e.g. "192.168.1.1%en0")
-                    let cleanHost = hostString.components(separatedBy: "%").first ?? hostString
-                    completion(cleanHost)
-                } else {
-                    completion(nil)
-                }
-                connection.cancel()
-            } else if case .failed = state {
-                completion(nil)
-                connection.cancel()
-            }
+    nonisolated func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
+        print("Failed to resolve \(sender.name): \(errorDict)")
+        Task { @MainActor in
+            self.resolvingServices.removeAll { $0 === sender }
         }
-        connection.start(queue: .global())
     }
 }
