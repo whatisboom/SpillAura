@@ -1,3 +1,66 @@
 import Foundation
 
-// Stub — implemented in M2
+/// Builds Entertainment API v2 UDP packets.
+///
+/// This type is stateless. The caller is responsible for tracking and
+/// incrementing the sequence number (wraps at 255 back to 0).
+enum ColorPacketBuilder {
+
+    /// Builds a single Entertainment API v2 packet that sets all provided
+    /// channels to the same RGB color.
+    ///
+    /// - Parameters:
+    ///   - r: Red component, 0.0–1.0
+    ///   - g: Green component, 0.0–1.0
+    ///   - b: Blue component, 0.0–1.0
+    ///   - channels: Channel IDs to include (e.g. [0, 1, 2, 3])
+    ///   - sequence: Packet sequence number, 0–255
+    /// - Returns: Raw packet `Data` ready to send over DTLS
+    static func buildPacket(
+        r: Float,
+        g: Float,
+        b: Float,
+        channels: [UInt16],
+        sequence: UInt8
+    ) -> Data {
+        var data = Data()
+
+        // --- Header (16 bytes) ---
+        // "HueStream" in ASCII (9 bytes)
+        data.append(contentsOf: [0x48, 0x75, 0x65, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6D])
+        // Version 2.0
+        data.append(contentsOf: [0x02, 0x00])
+        // Sequence number
+        data.append(sequence)
+        // Reserved
+        data.append(contentsOf: [0x00, 0x00])
+        // Colorspace: RGB = 0
+        data.append(0x00)
+        // Reserved
+        data.append(0x00)
+
+        // --- Channel entries (9 bytes each) ---
+        let rScaled = UInt16(min(max(r, 0.0), 1.0) * 65535)
+        let gScaled = UInt16(min(max(g, 0.0), 1.0) * 65535)
+        let bScaled = UInt16(min(max(b, 0.0), 1.0) * 65535)
+
+        for channelID in channels {
+            // Type: light = 0x00
+            data.append(0x00)
+            // Channel ID (big-endian UInt16)
+            data.append(UInt8(channelID >> 8))
+            data.append(UInt8(channelID & 0xFF))
+            // R (big-endian UInt16)
+            data.append(UInt8(rScaled >> 8))
+            data.append(UInt8(rScaled & 0xFF))
+            // G (big-endian UInt16)
+            data.append(UInt8(gScaled >> 8))
+            data.append(UInt8(gScaled & 0xFF))
+            // B (big-endian UInt16)
+            data.append(UInt8(bScaled >> 8))
+            data.append(UInt8(bScaled & 0xFF))
+        }
+
+        return data
+    }
+}
