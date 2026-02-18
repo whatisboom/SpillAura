@@ -85,12 +85,37 @@ final class EntertainmentSession: ObservableObject {
             guard let self else { return }
             do {
                 try await self.putAction("start")
+                // Verify the session is actually active before opening DTLS
+                let status = try await self.fetchSessionStatus()
+                print("[EntertainmentSession] session status after activation: \(status)")
+                if status != "active" {
+                    throw URLError(.badServerResponse, userInfo: [
+                        NSLocalizedDescriptionKey: "Expected session status 'active', got '\(status)'"
+                    ])
+                }
                 self.openDTLS()
             } catch {
                 self.lastError = "Activation failed: \(error.localizedDescription)"
                 self.state = .idle
             }
         }
+    }
+
+    private func fetchSessionStatus() async throws -> String {
+        let urlString = "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration/\(groupID)"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
+        let session = URLSession(configuration: .default, delegate: SessionSelfSignedCertDelegate(), delegateQueue: nil)
+        let (data, _) = try await session.data(for: request)
+        print("[EntertainmentSession] GET status body: \(String(data: data, encoding: .utf8) ?? "nil")")
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataArr = json["data"] as? [[String: Any]],
+              let first = dataArr.first,
+              let status = first["status"] as? String else {
+            return "unknown"
+        }
+        return status
     }
 
     private func deactivateREST() {
