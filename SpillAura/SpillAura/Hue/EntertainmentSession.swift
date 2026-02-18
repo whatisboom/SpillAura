@@ -93,6 +93,8 @@ final class EntertainmentSession: ObservableObject {
                         NSLocalizedDescriptionKey: "Expected session status 'active', got '\(status)'"
                     ])
                 }
+                // Brief delay to let the bridge fully open port 2100
+                try await Task.sleep(for: .milliseconds(500))
                 self.openDTLS()
             } catch {
                 self.lastError = "Activation failed: \(error.localizedDescription)"
@@ -211,12 +213,14 @@ final class EntertainmentSession: ObservableObject {
     }
 
     private func handleConnectionState(_ newState: NWConnection.State) {
+        print("[EntertainmentSession] connection state: \(newState)")
         switch newState {
         case .ready:
             reconnectAttempts = 0
             state = .streaming
 
         case .failed(let error):
+            print("[EntertainmentSession] connection failed: \(error)")
             connection?.cancel()
             connection = nil
 
@@ -231,11 +235,14 @@ final class EntertainmentSession: ObservableObject {
             }
 
         case .cancelled:
-            // Triggered by our own teardown — don't reconnect
+            print("[EntertainmentSession] connection cancelled")
             connection = nil
 
         case .waiting(let error):
-            print("[EntertainmentSession] waiting: \(error)")
+            print("[EntertainmentSession] connection waiting: \(error)")
+
+        case .preparing:
+            print("[EntertainmentSession] connection preparing…")
 
         default:
             break
