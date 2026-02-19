@@ -82,6 +82,19 @@ final class EntertainmentSession: ObservableObject {
         }))
     }
 
+    /// Send a packet with per-channel colors.
+    /// Only valid when `state == .streaming`.
+    func sendColors(_ channelColors: [(channel: UInt8, r: Float, g: Float, b: Float)]) {
+        guard state == .streaming, let connection else { return }
+        let packet = ColorPacketBuilder.buildPacket(
+            channelColors: channelColors,
+            sequence: sequenceNumber,
+            groupID: groupID
+        )
+        sequenceNumber = sequenceNumber == 255 ? 0 : sequenceNumber + 1
+        connection.send(content: packet, completion: .contentProcessed({ _ in }))
+    }
+
     // MARK: - REST Activation
 
     private func activate() {

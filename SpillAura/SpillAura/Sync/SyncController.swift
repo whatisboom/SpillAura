@@ -17,6 +17,7 @@ class SyncController: ObservableObject {
     }
 
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected
+    @Published private(set) var activeVibe: Vibe? = nil
 
     // MARK: - Private
 
@@ -24,23 +25,37 @@ class SyncController: ObservableObject {
     private var session: EntertainmentSession?
     private var sessionStateCancellable: AnyCancellable?
 
-    // Pending color to send once streaming starts
-    private var pendingColor: (r: Float, g: Float, b: Float)? = nil
+    private var pendingSource: LightSource? = nil
+    private var channelCount: Int = 1
 
-    // MARK: - M2 API
+    // MARK: - Public API
+
+    /// Activate the entertainment session and animate using a palette-based vibe.
+    func startVibe(_ vibe: Vibe) {
+        guard connectionStatus == .disconnected else { return }
+        activeVibe = vibe
+        pendingSource = PaletteSource(vibe: vibe)
+        startSession()
+    }
 
     /// Activate the entertainment session and send a static color to all lights.
-    ///
-    /// If credentials or group ID are missing from storage, this logs an error
-    /// and returns without doing anything.
-    ///
-    /// - Parameters:
-    ///   - r: Red 0.0–1.0
-    ///   - g: Green 0.0–1.0
-    ///   - b: Blue 0.0–1.0
     func startStaticColor(r: Float, g: Float, b: Float) {
         guard connectionStatus == .disconnected else { return }
+        activeVibe = nil
+        pendingSource = StaticColorSource(r: r, g: g, b: b)
+        startSession()
+    }
 
+    /// Stop the entertainment session.
+    func stop() {
+        session?.stop()
+        pendingSource = nil
+        activeVibe = nil
+    }
+
+    // MARK: - Private
+
+    private func startSession() {
         guard let credentials = HueBridgeAuth().loadFromKeychain() else {
             connectionStatus = .error("No bridge credentials found. Complete setup first.")
             return
@@ -52,7 +67,7 @@ class SyncController: ObservableObject {
             return
         }
 
-        let channelCount = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        channelCount = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
 
         let newSession = EntertainmentSession(
             credentials: credentials,
@@ -60,12 +75,10 @@ class SyncController: ObservableObject {
             channelCount: channelCount
         )
         session = newSession
-        pendingColor = (r, g, b)
         isRunning = true
 
-        // Observe state changes and mirror them to connectionStatus
         sessionStateCancellable = newSession.$state
-            .dropFirst()  // @Published emits the current .idle on subscription — skip it
+            .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
                 self?.handleSessionState(state)
@@ -79,24 +92,16 @@ class SyncController: ObservableObject {
         newSession.start()
     }
 
-    /// Stop the entertainment session.
-    func stop() {
-        session?.stop()
-        pendingColor = nil
-    }
-
-    // MARK: - Private
-
     private func handleSessionState(_ state: EntertainmentSession.State) {
         switch state {
         case .idle:
-            // Check for error BEFORE clearing session so we can surface it
             if let errorMessage = session?.lastError {
                 connectionStatus = .error(errorMessage)
             } else {
                 connectionStatus = .disconnected
             }
             isRunning = false
+            activeVibe = nil
             session = nil
             sessionStateCancellable = nil
             Task { [weak self] in
@@ -104,24 +109,22 @@ class SyncController: ObservableObject {
                 await self.syncActor.clearSession()
             }
 
-        case .activating, .connecting:
-            connectionStatus = .connecting
-
-        case .reconnecting:
+        case .activating, .connecting, .reconnecting:
             connectionStatus = .connecting
 
         case .streaming:
             connectionStatus = .streaming
-            if let color = pendingColor {
-                pendingColor = nil
-                let (r, g, b) = (color.r, color.g, color.b)
-                // Stream continuously at ~25Hz until the session stops.
-                // A single packet isn't enough — the bridge requires sustained streaming.
+            if let source = pendingSource {
+                pendingSource = nil
+                let capturedChannelCount = channelCount
+                let startTime = Date.timeIntervalSinceReferenceDate
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     while self.connectionStatus == .streaming {
-                        await self.syncActor.sendStaticColor(r: r, g: g, b: b)
-                        try? await Task.sleep(for: .milliseconds(40))
+                        let elapsed = Date.timeIntervalSinceReferenceDate - startTime
+                        let colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
+                        self.session?.sendColors(colors)
+                        try? await Task.sleep(for: .milliseconds(16))
                     }
                 }
             }
@@ -130,7 +133,6 @@ class SyncController: ObservableObject {
             connectionStatus = .disconnected
         }
 
-        // Surface session errors for non-idle states
         if case .idle = state { } else if let errorMessage = session?.lastError {
             connectionStatus = .error(errorMessage)
         }
