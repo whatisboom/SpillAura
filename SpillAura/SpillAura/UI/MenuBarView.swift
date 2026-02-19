@@ -37,11 +37,11 @@ struct MenuBarView: View {
         VStack(spacing: 8) {
             HStack {
                 Button {
-                    vibeIndex = max(0, vibeIndex - 1)
+                    vibeIndex = (vibeIndex - 1 + vibeLibrary.vibes.count) % max(vibeLibrary.vibes.count, 1)
                 } label: {
                     Image(systemName: "chevron.left")
                 }
-                .disabled(vibeIndex == 0)
+                .disabled(vibeLibrary.vibes.count < 2)
 
                 Spacer()
 
@@ -53,11 +53,16 @@ struct MenuBarView: View {
                 Spacer()
 
                 Button {
-                    vibeIndex = min(vibeLibrary.vibes.count - 1, vibeIndex + 1)
+                    vibeIndex = (vibeIndex + 1) % max(vibeLibrary.vibes.count, 1)
                 } label: {
                     Image(systemName: "chevron.right")
                 }
-                .disabled(vibeIndex >= vibeLibrary.vibes.count - 1)
+                .disabled(vibeLibrary.vibes.count < 2)
+            }
+            .onChange(of: vibeIndex) { _, newIndex in
+                if syncController.connectionStatus == .streaming, !vibeLibrary.vibes.isEmpty {
+                    syncController.startVibe(vibeLibrary.vibes[newIndex])
+                }
             }
 
             HStack(spacing: 8) {
