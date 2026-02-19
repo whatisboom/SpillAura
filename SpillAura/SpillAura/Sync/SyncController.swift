@@ -25,31 +25,33 @@ class SyncController: ObservableObject {
     private var session: EntertainmentSession?
     private var sessionStateCancellable: AnyCancellable?
 
-    private var pendingSource: LightSource? = nil
+    /// The source the streaming loop reads each tick. Swap this to change vibes mid-stream.
+    private var activeSource: LightSource? = nil
     private var channelCount: Int = 1
 
     // MARK: - Public API
 
-    /// Activate the entertainment session and animate using a palette-based vibe.
+    /// Start or hot-swap to a palette-based vibe.
     func startVibe(_ vibe: Vibe) {
-        guard connectionStatus == .disconnected else { return }
         activeVibe = vibe
-        pendingSource = PaletteSource(vibe: vibe)
-        startSession()
+        activeSource = PaletteSource(vibe: vibe)
+        if connectionStatus == .disconnected {
+            startSession()
+        }
     }
 
     /// Activate the entertainment session and send a static color to all lights.
     func startStaticColor(r: Float, g: Float, b: Float) {
         guard connectionStatus == .disconnected else { return }
         activeVibe = nil
-        pendingSource = StaticColorSource(r: r, g: g, b: b)
+        activeSource = StaticColorSource(r: r, g: g, b: b)
         startSession()
     }
 
     /// Stop the entertainment session.
     func stop() {
         session?.stop()
-        pendingSource = nil
+        activeSource = nil
         activeVibe = nil
     }
 
@@ -114,18 +116,17 @@ class SyncController: ObservableObject {
 
         case .streaming:
             connectionStatus = .streaming
-            if let source = pendingSource {
-                pendingSource = nil
-                let capturedChannelCount = channelCount
-                let startTime = Date.timeIntervalSinceReferenceDate
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    while self.connectionStatus == .streaming {
-                        let elapsed = Date.timeIntervalSinceReferenceDate - startTime
+            let capturedChannelCount = channelCount
+            let startTime = Date.timeIntervalSinceReferenceDate
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                while self.connectionStatus == .streaming {
+                    let elapsed = Date.timeIntervalSinceReferenceDate - startTime
+                    if let source = self.activeSource {
                         let colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
                         self.session?.sendColors(colors)
-                        try? await Task.sleep(for: .milliseconds(16))
                     }
+                    try? await Task.sleep(for: .milliseconds(16))
                 }
             }
 
