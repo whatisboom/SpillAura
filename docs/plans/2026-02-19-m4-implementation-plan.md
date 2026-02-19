@@ -343,7 +343,7 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 }
 ```
 
-**Important:** After creating this file, add it to the Xcode project by dragging it into the `LightSources` group in Xcode's project navigator (or use `File → Add Files to SpillAura`). Do not just create it on disk — Xcode must know about it.
+**Note:** The project uses `PBXFileSystemSynchronizedRootGroup` — Xcode automatically includes any `.swift` file on disk. Just creating the file is sufficient; no manual project registration needed.
 
 ### Step 2: Build
 
