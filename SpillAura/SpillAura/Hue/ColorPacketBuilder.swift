@@ -15,13 +15,15 @@ enum ColorPacketBuilder {
     ///   - b: Blue component, 0.0–1.0
     ///   - channels: Channel IDs to include (e.g. [0, 1, 2, 3])
     ///   - sequence: Packet sequence number, 0–255
+    ///   - groupID: Entertainment configuration UUID (e.g. "f1027f82-05b2-4a94-b498-4867602ff21f")
     /// - Returns: Raw packet `Data` ready to send over DTLS
     static func buildPacket(
         r: Float,
         g: Float,
         b: Float,
         channels: [UInt16],
-        sequence: UInt8
+        sequence: UInt8,
+        groupID: String
     ) -> Data {
         var data = Data()
 
@@ -39,16 +41,18 @@ enum ColorPacketBuilder {
         // Reserved
         data.append(0x00)
 
-        // --- Channel entries (9 bytes each) ---
+        // --- Entertainment area UUID (36 bytes ASCII) ---
+        // v2.0 requires the group UUID between the header and channel data.
+        data.append(contentsOf: groupID.utf8)
+
+        // --- Channel entries (7 bytes each) ---
+        // v2.0: channel_id (1 byte) + R (2B BE) + G (2B BE) + B (2B BE)
         let rScaled = UInt16(min(max(r, 0.0), 1.0) * 65535)
         let gScaled = UInt16(min(max(g, 0.0), 1.0) * 65535)
         let bScaled = UInt16(min(max(b, 0.0), 1.0) * 65535)
 
         for channelID in channels {
-            // Type: light = 0x00
-            data.append(0x00)
-            // Channel ID (big-endian UInt16)
-            data.append(UInt8(channelID >> 8))
+            // Channel ID (1 byte)
             data.append(UInt8(channelID & 0xFF))
             // R (big-endian UInt16)
             data.append(UInt8(rScaled >> 8))

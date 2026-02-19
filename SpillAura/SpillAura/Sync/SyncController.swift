@@ -65,6 +65,7 @@ class SyncController: ObservableObject {
 
         // Observe state changes and mirror them to connectionStatus
         sessionStateCancellable = newSession.$state
+            .dropFirst()  // @Published emits the current .idle on subscription — skip it
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
                 self?.handleSessionState(state)
@@ -111,12 +112,17 @@ class SyncController: ObservableObject {
 
         case .streaming:
             connectionStatus = .streaming
-            // Send the pending color now that DTLS is ready
             if let color = pendingColor {
                 pendingColor = nil
-                Task { [weak self] in
+                let (r, g, b) = (color.r, color.g, color.b)
+                // Stream continuously at ~25Hz until the session stops.
+                // A single packet isn't enough — the bridge requires sustained streaming.
+                Task { @MainActor [weak self] in
                     guard let self else { return }
-                    await self.syncActor.sendStaticColor(r: color.r, g: color.g, b: color.b)
+                    while self.connectionStatus == .streaming {
+                        await self.syncActor.sendStaticColor(r: r, g: g, b: b)
+                        try? await Task.sleep(for: .milliseconds(40))
+                    }
                 }
             }
 

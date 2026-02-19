@@ -70,11 +70,16 @@ final class EntertainmentSession: ObservableObject {
             g: g,
             b: b,
             channels: channels,
-            sequence: sequenceNumber
+            sequence: sequenceNumber,
+            groupID: groupID
         )
         sequenceNumber = sequenceNumber == 255 ? 0 : sequenceNumber + 1
 
-        connection.send(content: packet, completion: .idempotent)
+        connection.send(content: packet, completion: .contentProcessed({ error in
+            if let error = error {
+                print("[EntertainmentSession] send error: \(error)")
+            }
+        }))
     }
 
     // MARK: - REST Activation
@@ -84,10 +89,13 @@ final class EntertainmentSession: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             do {
+                // Always stop first — if a previous session was left active (e.g. app killed
+                // mid-stream), the bridge won't reopen UDP 2100 on a bare "start".
+                try? await self.putAction("stop")
+                try await Task.sleep(for: .milliseconds(500))
                 try await self.putAction("start")
                 // Verify the session is actually active before opening DTLS
                 let status = try await self.fetchSessionStatus()
-                print("[EntertainmentSession] session status after activation: \(status)")
                 if status != "active" {
                     throw URLError(.badServerResponse, userInfo: [
                         NSLocalizedDescriptionKey: "Expected session status 'active', got '\(status)'"
@@ -110,7 +118,6 @@ final class EntertainmentSession: ObservableObject {
         request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
         let session = URLSession(configuration: .default, delegate: SessionSelfSignedCertDelegate(), delegateQueue: nil)
         let (data, _) = try await session.data(for: request)
-        print("[EntertainmentSession] GET status body: \(String(data: data, encoding: .utf8) ?? "nil")")
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let dataArr = json["data"] as? [[String: Any]],
               let first = dataArr.first,
@@ -126,7 +133,6 @@ final class EntertainmentSession: ObservableObject {
             do {
                 try await self.putAction("stop")
             } catch {
-                // Log but don't surface — we're already tearing down
                 print("[EntertainmentSession] deactivation REST call failed: \(error)")
             }
             self.state = .idle
@@ -135,8 +141,6 @@ final class EntertainmentSession: ObservableObject {
 
     private func putAction(_ action: String) async throws {
         let urlString = "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration/\(groupID)"
-        print("[EntertainmentSession] PUT \(action) → \(urlString)")
-        print("[EntertainmentSession] username: \(credentials.username.prefix(8))… groupID: \(groupID)")
         guard let url = URL(string: urlString) else {
             throw URLError(.badURL)
         }
@@ -152,10 +156,8 @@ final class EntertainmentSession: ObservableObject {
             delegate: SessionSelfSignedCertDelegate(),
             delegateQueue: nil
         )
-        let (data, response) = try await session.data(for: request)
+        let (_, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-        print("[EntertainmentSession] PUT \(action) response: HTTP \(statusCode)")
-        print("[EntertainmentSession] response body: \(String(data: data, encoding: .utf8) ?? "nil")")
 
         guard let http = response as? HTTPURLResponse,
               (200...299).contains(http.statusCode) else {
@@ -170,9 +172,32 @@ final class EntertainmentSession: ObservableObject {
     private func openDTLS() {
         state = .connecting
 
-        let pskIdentity = credentials.username.data(using: .utf8)!
+        let pskIdentity = Data(credentials.username.utf8)
         let pskData = hexToData(credentials.clientKey)
 
+        // NordVPN (and similar) creates utun interfaces that NWConnection may prefer over the
+        // physical Ethernet/WiFi interface. VPN tunnels inherit the same interface *type* as the
+        // underlying physical link, so type-based filtering doesn't help. Instead, use
+        // NWPathMonitor to get the actual interface objects and filter by name prefix.
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            monitor.cancel()
+            guard let self else { return }
+
+            // Skip VPN tunnels (utun, ipsec, ppp); prefer wired Ethernet over WiFi
+            let physicalIface = path.availableInterfaces
+                .filter { !$0.name.hasPrefix("utun") && !$0.name.hasPrefix("ipsec") && !$0.name.hasPrefix("ppp") }
+                .sorted { lhs, _ in lhs.type == .wiredEthernet }
+                .first
+
+            Task { @MainActor in
+                self.startDTLS(pskIdentity: pskIdentity, pskData: pskData, via: physicalIface)
+            }
+        }
+        monitor.start(queue: .global(qos: .userInteractive))
+    }
+
+    private func startDTLS(pskIdentity: Data, pskData: Data, via physicalIface: NWInterface?) {
         let tlsOptions = NWProtocolTLS.Options()
         sec_protocol_options_set_min_tls_protocol_version(
             tlsOptions.securityProtocolOptions, .DTLSv12
@@ -192,9 +217,16 @@ final class EntertainmentSession: ObservableObject {
             pskDispatch as __DispatchData,
             identityDispatch as __DispatchData
         )
+        // Hue bridge uses PSK-only — no server certificate to verify
+        sec_protocol_options_set_peer_authentication_required(
+            tlsOptions.securityProtocolOptions, false
+        )
 
         let params = NWParameters(dtls: tlsOptions, udp: NWProtocolUDP.Options())
         params.allowLocalEndpointReuse = true
+        if let iface = physicalIface {
+            params.requiredInterface = iface
+        }
 
         let conn = NWConnection(
             host: NWEndpoint.Host(credentials.bridgeIP),
@@ -210,10 +242,17 @@ final class EntertainmentSession: ObservableObject {
         }
 
         conn.start(queue: .global(qos: .userInteractive))
+
+        // Fail fast if DTLS handshake doesn't complete in 15 seconds
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(15))
+            guard let self, case .connecting = self.state else { return }
+            print("[EntertainmentSession] DTLS handshake timeout")
+            conn.cancel()
+        }
     }
 
     private func handleConnectionState(_ newState: NWConnection.State) {
-        print("[EntertainmentSession] connection state: \(newState)")
         switch newState {
         case .ready:
             reconnectAttempts = 0
@@ -235,14 +274,10 @@ final class EntertainmentSession: ObservableObject {
             }
 
         case .cancelled:
-            print("[EntertainmentSession] connection cancelled")
             connection = nil
 
         case .waiting(let error):
             print("[EntertainmentSession] connection waiting: \(error)")
-
-        case .preparing:
-            print("[EntertainmentSession] connection preparing…")
 
         default:
             break
