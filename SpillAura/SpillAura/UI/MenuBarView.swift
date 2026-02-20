@@ -6,6 +6,12 @@ struct MenuBarView: View {
     @Environment(\.openWindow) private var openWindow
 
     @State private var vibeIndex: Int = 0
+    @State private var mode: Mode = .vibe
+
+    private enum Mode: String, CaseIterable {
+        case vibe = "Vibe"
+        case screen = "Screen"
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -18,13 +24,26 @@ struct MenuBarView: View {
 
             Divider()
 
-            vibePicker
+            // Mode tabs
+            Picker("", selection: $mode) {
+                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: mode) { _, _ in
+                // Switching mode while streaming stops the session
+                if syncController.connectionStatus != .disconnected {
+                    syncController.stop()
+                }
+            }
+
+            switch mode {
+            case .vibe:   vibePicker
+            case .screen: screenControls
+            }
 
             Divider()
 
-            Button("Open Settings") {
-                openWindow(id: "main")
-            }
+            Button("Open Settings") { openWindow(id: "main") }
         }
         .padding()
         .frame(width: 260)
@@ -72,10 +91,30 @@ struct MenuBarView: View {
                 }
                 .disabled(syncController.connectionStatus != .disconnected || vibeLibrary.vibes.isEmpty)
 
-                Button("Stop") {
-                    syncController.stop()
+                Button("Stop") { syncController.stop() }
+                    .disabled(syncController.connectionStatus == .disconnected)
+            }
+        }
+    }
+
+    // MARK: - Screen Controls
+
+    @ViewBuilder
+    private var screenControls: some View {
+        VStack(spacing: 8) {
+            Picker("", selection: $syncController.responsiveness) {
+                ForEach(SyncResponsiveness.allCases) { preset in
+                    Text(preset.label).tag(preset)
                 }
-                .disabled(syncController.connectionStatus == .disconnected)
+            }
+            .pickerStyle(.segmented)
+
+            HStack(spacing: 8) {
+                Button("Start") { syncController.startScreenSync() }
+                    .disabled(syncController.connectionStatus != .disconnected)
+
+                Button("Stop") { syncController.stop() }
+                    .disabled(syncController.connectionStatus == .disconnected)
             }
         }
     }
