@@ -4,6 +4,13 @@ struct MainWindow: View {
     @EnvironmentObject var syncController: SyncController
 
     var body: some View {
-        SetupView()
+        TabView {
+            SetupView()
+                .tabItem { Label("Setup", systemImage: "gear") }
+
+            ScreenSyncView()
+                .tabItem { Label("Screen Sync", systemImage: "display") }
+        }
+        .frame(minWidth: 520, minHeight: 400)
     }
 }
