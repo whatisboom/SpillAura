@@ -19,6 +19,17 @@ class SyncController: ObservableObject {
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected
     @Published private(set) var activeVibe: Vibe? = nil
 
+    @Published var responsiveness: SyncResponsiveness = {
+        let raw = UserDefaults.standard.string(forKey: "syncResponsiveness") ?? ""
+        return SyncResponsiveness(rawValue: raw) ?? .balanced
+    }() {
+        didSet { UserDefaults.standard.set(responsiveness.rawValue, forKey: "syncResponsiveness") }
+    }
+
+    /// Latest per-channel colors from the active source. Updated every tick while streaming.
+    /// Used by ScreenSyncView for the live zone preview.
+    @Published private(set) var previewColors: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
+
     // MARK: - Private
 
     private let syncActor = SyncActor()
@@ -46,6 +57,17 @@ class SyncController: ObservableObject {
         activeVibe = nil
         activeSource = StaticColorSource(r: r, g: g, b: b)
         startSession()
+    }
+
+    /// Start or hot-swap to screen sync mode.
+    func startScreenSync() {
+        activeVibe = nil
+        let cc = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        let zones = ZoneConfig.load(channelCount: cc).zones
+        activeSource = ScreenCaptureSource(zones: zones, responsiveness: responsiveness)
+        if connectionStatus == .disconnected {
+            startSession()
+        }
     }
 
     /// Stop the entertainment session.
@@ -125,9 +147,11 @@ class SyncController: ObservableObject {
                     if let source = self.activeSource {
                         let colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
                         self.session?.sendColors(colors)
+                        self.previewColors = colors
                     }
                     try? await Task.sleep(for: .milliseconds(16))
                 }
+                self.previewColors = []
             }
 
         case .deactivating:
