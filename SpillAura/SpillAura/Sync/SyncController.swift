@@ -45,6 +45,10 @@ class SyncController: ObservableObject {
     private var activeSource: LightSource? = nil
     private var channelCount: Int = 1
 
+    /// When set, the streaming loop overrides this channel with a pulsing white signal
+    /// so the user can physically identify which light maps to which channel.
+    var pulsedChannel: UInt8? = nil
+
     // MARK: - Public API
 
     /// Start or hot-swap to a palette-based vibe.
@@ -156,7 +160,12 @@ class SyncController: ObservableObject {
                 while self.connectionStatus == .streaming {
                     let elapsed = Date.timeIntervalSinceReferenceDate - startTime
                     if let source = self.activeSource {
-                        let colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
+                        var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
+                        if let ch = self.pulsedChannel,
+                           let idx = colors.firstIndex(where: { $0.channel == ch }) {
+                            let brightness = Float(0.5 + 0.5 * sin(elapsed * .pi * 4))
+                            colors[idx] = (channel: ch, r: brightness, g: brightness, b: brightness)
+                        }
                         self.session?.sendColors(colors)
                         self.previewColors = colors
                     }
