@@ -107,7 +107,7 @@ struct MainWindow: View {
         HStack(spacing: 10) {
             if mode == .vibe {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
-                Slider(value: $syncController.speedMultiplier, in: 0.25...3.0)
+                Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
                     .frame(width: 100)
                 Image(systemName: "hare").foregroundStyle(.secondary)
 
