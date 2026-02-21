@@ -5,7 +5,7 @@ struct MainWindow: View {
     @EnvironmentObject var auraLibrary: AuraLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @State private var mode: Mode = .aura
+    @AppStorage("selectedMode") private var mode: Mode = .aura
     @State private var selectedAura: Aura? = nil
 
     private enum Mode: String, CaseIterable {
