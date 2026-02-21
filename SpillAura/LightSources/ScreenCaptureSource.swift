@@ -131,22 +131,21 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
         var result: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
         for (i, zone) in config.zones.enumerated() {
-            let r = zone.region.rect(depth: config.depth)
-            let zx = Int(r.minX   * Double(pw))
-            let zy = Int(r.minY   * Double(ph))
-            let zw = max(1, Int(r.width  * Double(pw)))
-            let zh = max(1, Int(r.height * Double(ph)))
-
-            let edgeW = max(1, Int(Double(zw) * 0.2))
-            let edgeH = max(1, Int(Double(zh) * 0.2))
+            let bRect = zone.region.boundingRect()
+            let zx = Int(bRect.minX * Double(pw))
+            let zy = Int(bRect.minY * Double(ph))
+            let zw = max(1, Int(bRect.width  * Double(pw)))
+            let zh = max(1, Int(bRect.height * Double(ph)))
 
             var sumR = 0.0, sumG = 0.0, sumB = 0.0, sumW = 0.0
 
             for y in zy..<min(zy + zh, ph) {
                 for x in zx..<min(zx + zw, pw) {
-                    let isEdge = (x - zx) < edgeW || (zx + zw - 1 - x) < edgeW
-                              || (y - zy) < edgeH || (zy + zh - 1 - y) < edgeH
-                    let w = isEdge ? config.edgeWeight : 1.0
+                    let nx = Double(x) / Double(pw)
+                    let ny = Double(y) / Double(ph)
+                    guard zone.region.contains(nx: nx, ny: ny) else { continue }
+                    let w = zone.region.isEdge(nx: nx, ny: ny, depth: config.depth)
+                        ? config.edgeWeight : 1.0
                     let off = y * bpr + x * 4  // BGRA
                     let b = Double(buf[off])     / 255.0
                     let g = Double(buf[off + 1]) / 255.0

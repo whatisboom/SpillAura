@@ -91,6 +91,14 @@ private struct ScreenSyncSettingsSection: View {
                     Divider()
                 }
 
+                // Layout presets
+                HStack(spacing: 8) {
+                    Button("2-Bar (L/R)")    { applyPreset(.twoBar) }
+                    Button("3-Bar (T/L/R)")  { applyPreset(.threeBar) }
+                    Button("4-Bar Surround") { applyPreset(.fourBar) }
+                }
+                .buttonStyle(.bordered)
+
                 // Zone pickers — one row per channel
                 ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
                     let channelID = syncController.zoneConfig.zones[i].channelID
@@ -165,6 +173,14 @@ private struct ScreenSyncSettingsSection: View {
         .task { await loadDisplays() }
     }
 
+    private func applyPreset(_ preset: ZoneLayoutPreset) {
+        let regions = preset.regions(for: syncController.zoneConfig.zones.count)
+        for i in syncController.zoneConfig.zones.indices {
+            syncController.zoneConfig.zones[i].region = regions[i]
+        }
+        syncController.saveZoneConfig()
+    }
+
     private func startIdentify(channel: UInt8) {
         pulseTask?.cancel()
         syncController.identify(channel: channel)
@@ -195,6 +211,22 @@ private struct ScreenSyncSettingsSection: View {
             return (id: UInt32(display.displayID), name: name)
         }
         await MainActor.run { availableDisplays = displays }
+    }
+}
+
+// MARK: - ZoneLayoutPreset
+
+private enum ZoneLayoutPreset {
+    case twoBar, threeBar, fourBar
+
+    func regions(for count: Int) -> [ScreenRegion] {
+        let all: [ScreenRegion]
+        switch self {
+        case .twoBar:   all = [.leftTriangle, .rightTriangle]
+        case .threeBar: all = [.topTriangle, .leftTriangle, .rightTriangle]
+        case .fourBar:  all = [.topTriangle, .rightTriangle, .bottomTriangle, .leftTriangle]
+        }
+        return (0..<count).map { i in i < all.count ? all[i] : .fullScreen }
     }
 }
 

@@ -18,7 +18,7 @@ struct ScreenSyncView: View {
                         Text(preset.label).tag(preset)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 .onChange(of: syncController.responsiveness) { _, _ in
                     if syncController.connectionStatus == .streaming {
                         syncController.startScreenSync()
@@ -33,7 +33,6 @@ struct ScreenSyncView: View {
 
                     ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
                         let zone = syncController.zoneConfig.zones[i]
-                        let rect = zone.region.rect(depth: syncController.zoneConfig.depth)
                         let isStreaming = syncController.connectionStatus == .streaming
                         let previewColor = syncController.previewColors
                             .first(where: { $0.channel == zone.channelID })
@@ -45,21 +44,17 @@ struct ScreenSyncView: View {
                               )
                             : Color.secondary.opacity(0.25)
                         let label = isStreaming ? "Ch \(zone.channelID)" : zone.region.label
-                        let w = rect.width  * geo.size.width
-                        let h = rect.height * geo.size.height
+                        let c = zone.region.centroid
 
                         ZStack {
-                            Rectangle().fill(fill)
+                            zone.region.previewPath(in: CGRect(origin: .zero, size: geo.size))
+                                .fill(fill)
                             Text(label)
                                 .font(.caption2)
                                 .foregroundStyle(.white)
                                 .shadow(color: .black, radius: 1)
+                                .position(x: c.x * geo.size.width, y: c.y * geo.size.height)
                         }
-                        .frame(width: w, height: h)
-                        .position(
-                            x: rect.midX * geo.size.width,
-                            y: rect.midY * geo.size.height
-                        )
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))

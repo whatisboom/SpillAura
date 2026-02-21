@@ -1,31 +1,110 @@
 import Foundation
 import CoreGraphics
+import SwiftUI
 
 enum ScreenRegion: String, CaseIterable, Codable, Identifiable {
-    case leftEdge, rightEdge, topEdge, bottomEdge, center, fullScreen
+    case topTriangle, bottomTriangle, leftTriangle, rightTriangle, center, fullScreen
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .leftEdge:   return "Left Edge"
-        case .rightEdge:  return "Right Edge"
-        case .topEdge:    return "Top Edge"
-        case .bottomEdge: return "Bottom Edge"
-        case .center:     return "Center"
-        case .fullScreen: return "Full Screen"
+        case .topTriangle:    return "Top Triangle"
+        case .bottomTriangle: return "Bottom Triangle"
+        case .leftTriangle:   return "Left Triangle"
+        case .rightTriangle:  return "Right Triangle"
+        case .center:         return "Center"
+        case .fullScreen:     return "Full Screen"
         }
     }
 
-    /// Normalized CGRect (0.0–1.0) for this region, scaled by `depth` for edge regions.
-    func rect(depth: Double) -> CGRect {
+    /// Tight bounding box for pixel iteration (normalized 0–1).
+    func boundingRect() -> CGRect {
         switch self {
-        case .leftEdge:   return CGRect(x: 0.0,         y: 0.0, width: depth,       height: 1.0)
-        case .rightEdge:  return CGRect(x: 1.0 - depth, y: 0.0, width: depth,       height: 1.0)
-        case .topEdge:    return CGRect(x: 0.0,         y: 0.0, width: 1.0,         height: depth)
-        case .bottomEdge: return CGRect(x: 0.0,         y: 1.0 - depth, width: 1.0, height: depth)
-        case .center:     return CGRect(x: 0.25,        y: 0.25, width: 0.5,        height: 0.5)
-        case .fullScreen: return CGRect(x: 0.0,         y: 0.0, width: 1.0,         height: 1.0)
+        case .topTriangle:    return CGRect(x: 0,    y: 0,    width: 1,   height: 0.5)
+        case .bottomTriangle: return CGRect(x: 0,    y: 0.5,  width: 1,   height: 0.5)
+        case .leftTriangle:   return CGRect(x: 0,    y: 0,    width: 0.5, height: 1)
+        case .rightTriangle:  return CGRect(x: 0.5,  y: 0,    width: 0.5, height: 1)
+        case .center:         return CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+        case .fullScreen:     return CGRect(x: 0,    y: 0,    width: 1,   height: 1)
+        }
+    }
+
+    /// Whether the normalized pixel coordinate (nx, ny) falls inside this region.
+    func contains(nx: Double, ny: Double) -> Bool {
+        switch self {
+        case .topTriangle:    return ny < nx && ny < (1 - nx)
+        case .bottomTriangle: return ny > nx && ny > (1 - nx)
+        case .leftTriangle:   return ny > nx && ny < (1 - nx)
+        case .rightTriangle:  return ny < nx && ny > (1 - nx)
+        case .center:         return nx >= 0.25 && nx <= 0.75 && ny >= 0.25 && ny <= 0.75
+        case .fullScreen:     return true
+        }
+    }
+
+    /// Whether this pixel is in the "edge" band for edge-weighting purposes.
+    func isEdge(nx: Double, ny: Double, depth: Double) -> Bool {
+        switch self {
+        case .topTriangle:    return ny < depth
+        case .bottomTriangle: return ny > 1 - depth
+        case .leftTriangle:   return nx < depth
+        case .rightTriangle:  return nx > 1 - depth
+        case .center:
+            // Outer 20% of the center rect (relative to the center rect bounds)
+            let inner = 0.05  // 20% of the 0.25-wide rect = 0.05
+            return nx < 0.25 + inner || nx > 0.75 - inner
+                || ny < 0.25 + inner || ny > 0.75 - inner
+        case .fullScreen:     return false
+        }
+    }
+
+    /// Normalized centroid for label placement (computed as average of vertices).
+    var centroid: CGPoint {
+        switch self {
+        case .topTriangle:    return CGPoint(x: 0.5,   y: 0.167)
+        case .bottomTriangle: return CGPoint(x: 0.5,   y: 0.833)
+        case .leftTriangle:   return CGPoint(x: 0.167, y: 0.5)
+        case .rightTriangle:  return CGPoint(x: 0.833, y: 0.5)
+        case .center:         return CGPoint(x: 0.5,   y: 0.5)
+        case .fullScreen:     return CGPoint(x: 0.5,   y: 0.5)
+        }
+    }
+
+    /// SwiftUI path for the live zone preview, mapped into `rect`.
+    func previewPath(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        let ox = rect.minX, oy = rect.minY
+
+        func pt(_ nx: Double, _ ny: Double) -> CGPoint {
+            CGPoint(x: ox + nx * w, y: oy + ny * h)
+        }
+
+        switch self {
+        case .topTriangle:
+            var p = Path()
+            p.move(to: pt(0, 0)); p.addLine(to: pt(1, 0)); p.addLine(to: pt(0.5, 0.5))
+            p.closeSubpath()
+            return p
+        case .bottomTriangle:
+            var p = Path()
+            p.move(to: pt(0, 1)); p.addLine(to: pt(1, 1)); p.addLine(to: pt(0.5, 0.5))
+            p.closeSubpath()
+            return p
+        case .leftTriangle:
+            var p = Path()
+            p.move(to: pt(0, 0)); p.addLine(to: pt(0, 1)); p.addLine(to: pt(0.5, 0.5))
+            p.closeSubpath()
+            return p
+        case .rightTriangle:
+            var p = Path()
+            p.move(to: pt(1, 0)); p.addLine(to: pt(1, 1)); p.addLine(to: pt(0.5, 0.5))
+            p.closeSubpath()
+            return p
+        case .center:
+            return Path(CGRect(x: ox + 0.25 * w, y: oy + 0.25 * h,
+                               width: 0.5 * w, height: 0.5 * h))
+        case .fullScreen:
+            return Path(rect)
         }
     }
 }
@@ -38,7 +117,7 @@ struct Zone: Codable {
 struct ZoneConfig: Codable {
     var displayID: UInt32   // 0 = CGMainDisplayID()
     var zones: [Zone]
-    /// Fraction of screen width/height that edge regions (leftEdge, rightEdge, etc.) cover. Default 0.20.
+    /// Fraction of screen used for edge-weighting band in triangle regions. Default 0.20.
     var depth: Double
     /// Weight multiplier for edge pixels within a zone (edge vs center). Default 3.0.
     var edgeWeight: Double
