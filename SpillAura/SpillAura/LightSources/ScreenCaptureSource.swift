@@ -111,8 +111,10 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 
     // MARK: - Color extraction
 
-    /// Weighted edge average: outer 20% of each zone weighted 3× vs inner 80%.
-    /// Followed by EMA smoothing per channel component.
+    /// Weighted edge RMS average: accumulates squares of pixel values (sRGB → linear-light
+    /// approximation), then takes the square root of the mean (linear → display). This ensures
+    /// bright pixels contribute their fair share rather than being swamped by dark backgrounds.
+    /// Edge pixels (outer 20%) are weighted 3× vs center. Followed by EMA smoothing.
     private func extractColors(
         from pixelBuffer: CVPixelBuffer
     ) -> [(channel: UInt8, r: Float, g: Float, b: Float)] {
@@ -146,18 +148,21 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
                               || (y - zy) < edgeH || (zy + zh - 1 - y) < edgeH
                     let w = isEdge ? 3.0 : 1.0
                     let off = y * bpr + x * 4  // BGRA
-                    sumB += Double(buf[off])     / 255.0 * w
-                    sumG += Double(buf[off + 1]) / 255.0 * w
-                    sumR += Double(buf[off + 2]) / 255.0 * w
+                    let b = Double(buf[off])     / 255.0
+                    let g = Double(buf[off + 1]) / 255.0
+                    let rv = Double(buf[off + 2]) / 255.0
+                    sumB += b  * b  * w   // accumulate squares for RMS
+                    sumG += g  * g  * w
+                    sumR += rv * rv * w
                     sumW += w
                 }
             }
 
             guard sumW > 0 else { result.append(smoothed[i]); continue }
 
-            let rawR = Float(sumR / sumW)
-            let rawG = Float(sumG / sumW)
-            let rawB = Float(sumB / sumW)
+            let rawR = Float(sqrt(sumR / sumW))   // sqrt(mean of squares) = RMS
+            let rawG = Float(sqrt(sumG / sumW))
+            let rawB = Float(sqrt(sumB / sumW))
 
             let prev = smoothed[i]
             smoothed[i] = (
