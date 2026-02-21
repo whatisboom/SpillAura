@@ -76,11 +76,7 @@ final class EntertainmentSession: ObservableObject {
         )
         sequenceNumber = sequenceNumber == 255 ? 0 : sequenceNumber + 1
 
-        connection.send(content: packet, completion: .contentProcessed({ error in
-            if let error = error {
-                print("[EntertainmentSession] send error: \(error)")
-            }
-        }))
+        connection.send(content: packet, completion: .idempotent)
     }
 
     /// Send a packet with per-channel colors.
@@ -93,7 +89,7 @@ final class EntertainmentSession: ObservableObject {
             groupID: groupID
         )
         sequenceNumber = sequenceNumber == 255 ? 0 : sequenceNumber + 1
-        connection.send(content: packet, completion: .contentProcessed({ _ in }))
+        connection.send(content: packet, completion: .idempotent)
     }
 
     // MARK: - REST Activation

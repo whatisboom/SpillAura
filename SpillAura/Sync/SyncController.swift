@@ -118,6 +118,7 @@ class SyncController: ObservableObject {
     private var channelCount: Int = 1
 
     private var hasAutoStarted = false
+    private var streamingTask: Task<Void, Never>?
 
     /// True when the current session was started solely for channel identification.
     /// Lets stopIdentify() know it owns the session and should tear it down.
@@ -196,6 +197,8 @@ class SyncController: ObservableObject {
     /// Stop the entertainment session.
     func stop() {
         isIdentifySession = false
+        streamingTask?.cancel()
+        streamingTask = nil
         session?.stop()
         activeSource = nil
         activeAura = nil
@@ -272,6 +275,8 @@ class SyncController: ObservableObject {
     private func handleSessionState(_ state: EntertainmentSession.State) {
         switch state {
         case .idle:
+            streamingTask?.cancel()
+            streamingTask = nil
             if let errorMessage = session?.lastError {
                 connectionStatus = .error(errorMessage)
             } else {
@@ -293,9 +298,11 @@ class SyncController: ObservableObject {
             connectionStatus = .streaming
             let capturedChannelCount = channelCount
             let startTime = Date.timeIntervalSinceReferenceDate
-            Task { @MainActor [weak self] in
+            streamingTask?.cancel()
+            streamingTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                while self.connectionStatus == .streaming {
+                var tick: UInt8 = 0
+                while !Task.isCancelled && self.connectionStatus == .streaming {
                     let elapsed = Date.timeIntervalSinceReferenceDate - startTime
                     if let source = self.activeSource {
                         var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed * self.speedMultiplier)
@@ -307,7 +314,10 @@ class SyncController: ObservableObject {
                         let scale = self.brightness
                         colors = colors.map { (channel: $0.channel, r: $0.r * scale, g: $0.g * scale, b: $0.b * scale) }
                         self.session?.sendColors(colors)
-                        self.previewColors = colors
+                        tick &+= 1
+                        if tick % 4 == 0 {
+                            self.previewColors = colors
+                        }
                     }
                     try? await Task.sleep(for: .milliseconds(16))
                 }
