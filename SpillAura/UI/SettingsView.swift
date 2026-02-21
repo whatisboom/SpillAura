@@ -177,6 +177,7 @@ private struct ZoneReconfigureSheet: View {
         }
         .padding(24)
         .frame(minWidth: 400)
+        .onAppear { syncController.identifyAll() }
         .onDisappear { syncController.stopIdentify() }
     }
 }
