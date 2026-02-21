@@ -1,7 +1,9 @@
 import SwiftUI
 import ServiceManagement
+import ScreenCaptureKit
 
 struct SettingsView: View {
+    @EnvironmentObject var syncController: SyncController
     @State private var auth = HueBridgeAuth()
     @State private var credentials: BridgeCredentials? = nil
     @State private var showPairingFlow: Bool = false
@@ -38,6 +40,9 @@ struct SettingsView: View {
                     .padding(4)
                 }
 
+                // MARK: Screen Sync
+                ScreenSyncSettingsSection()
+
                 // MARK: App
                 GroupBox("App") {
                     VStack(alignment: .leading, spacing: 8) {
@@ -53,6 +58,143 @@ struct SettingsView: View {
         }
         .frame(minWidth: 420, maxWidth: 420, minHeight: 400)
         .onAppear { credentials = auth.loadFromKeychain() }
+    }
+}
+
+// MARK: - ScreenSyncSettingsSection
+
+private struct ScreenSyncSettingsSection: View {
+    @EnvironmentObject var syncController: SyncController
+    @State private var availableDisplays: [(id: UInt32, name: String)] = []
+    @State private var pulseTask: Task<Void, Never>?
+
+    var body: some View {
+        GroupBox("Screen Sync") {
+            VStack(alignment: .leading, spacing: 12) {
+
+                // Display picker — only visible with multiple monitors
+                if availableDisplays.count > 1 {
+                    LabeledContent("Source Display") {
+                        Picker("", selection: Binding(
+                            get: { syncController.zoneConfig.displayID },
+                            set: { newVal in
+                                syncController.zoneConfig.displayID = newVal
+                                syncController.saveZoneConfig()
+                            }
+                        )) {
+                            ForEach(availableDisplays, id: \.id) { d in
+                                Text(d.name).tag(d.id)
+                            }
+                        }
+                        .frame(maxWidth: 200)
+                    }
+                    Divider()
+                }
+
+                // Zone pickers — one row per channel
+                ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
+                    let channelID = syncController.zoneConfig.zones[i].channelID
+                    LabeledContent("Channel \(channelID)") {
+                        Picker("", selection: Binding(
+                            get: { syncController.zoneConfig.zones[i].region },
+                            set: { newVal in
+                                syncController.zoneConfig.zones[i].region = newVal
+                                syncController.saveZoneConfig()
+                            }
+                        )) {
+                            ForEach(ScreenRegion.allCases) { region in
+                                Text(region.label).tag(region)
+                            }
+                        }
+                        .frame(maxWidth: 160)
+                    }
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if hovering {
+                            startIdentify(channel: channelID)
+                        } else {
+                            stopIdentify()
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Zone Depth slider
+                LabeledContent("Zone Depth") {
+                    HStack {
+                        Slider(
+                            value: Binding(
+                                get: { syncController.zoneConfig.depth },
+                                set: { newVal in
+                                    syncController.zoneConfig.depth = newVal
+                                    syncController.saveZoneConfig()
+                                }
+                            ),
+                            in: 0.05...0.50
+                        )
+                        .frame(maxWidth: 160)
+                        Text("\(Int(syncController.zoneConfig.depth * 100))%")
+                            .frame(width: 36, alignment: .trailing)
+                            .monospacedDigit()
+                    }
+                }
+
+                // Edge Weight slider
+                LabeledContent("Edge Weight") {
+                    HStack {
+                        Slider(
+                            value: Binding(
+                                get: { syncController.zoneConfig.edgeWeight },
+                                set: { newVal in
+                                    syncController.zoneConfig.edgeWeight = newVal
+                                    syncController.saveZoneConfig()
+                                }
+                            ),
+                            in: 1.0...5.0
+                        )
+                        .frame(maxWidth: 160)
+                        Text(String(format: "%.1f×", syncController.zoneConfig.edgeWeight))
+                            .frame(width: 36, alignment: .trailing)
+                            .monospacedDigit()
+                    }
+                }
+            }
+            .padding(4)
+        }
+        .task { await loadDisplays() }
+    }
+
+    private func startIdentify(channel: UInt8) {
+        pulseTask?.cancel()
+        syncController.identify(channel: channel)
+        pulseTask = Task {
+            try? await Task.sleep(for: .seconds(8))
+            if !Task.isCancelled {
+                stopIdentify()
+            }
+        }
+    }
+
+    private func stopIdentify() {
+        pulseTask?.cancel()
+        pulseTask = nil
+        syncController.stopIdentify()
+    }
+
+    private func loadDisplays() async {
+        guard let content = try? await SCShareableContent.excludingDesktopWindows(
+            false, onScreenWindowsOnly: false
+        ) else { return }
+
+        let displays: [(id: UInt32, name: String)] = content.displays.map { display in
+            let name = NSScreen.screens.first(where: {
+                ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32)
+                    == UInt32(display.displayID)
+            })?.localizedName ?? "Display \(display.displayID)"
+            return (id: UInt32(display.displayID), name: name)
+        }
+        await MainActor.run { availableDisplays = displays }
     }
 }
 
