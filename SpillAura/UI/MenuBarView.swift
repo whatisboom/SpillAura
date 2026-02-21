@@ -7,12 +7,6 @@ struct MenuBarView: View {
     @Environment(\.openWindow) private var openWindow
 
     @State private var selectedAuraID: Aura.ID? = nil
-    @AppStorage("selectedMode") private var mode: Mode = .screen
-
-    private enum Mode: String, CaseIterable {
-        case aura = "Aura"
-        case screen = "Screen"
-    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -26,12 +20,12 @@ struct MenuBarView: View {
             Divider()
 
             // Mode tabs
-            Picker("", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            Picker("", selection: $syncController.selectedMode) {
+                ForEach(SyncMode.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
             .help("Switch between Aura mode (animated color cycles) and Screen Sync (mirrors your display content in real time).")
-            .onChange(of: mode) { _, newMode in
+            .onChange(of: syncController.selectedMode) { _, newMode in
                 guard syncController.connectionStatus == .streaming else { return }
                 switch newMode {
                 case .aura:
@@ -43,7 +37,7 @@ struct MenuBarView: View {
                 }
             }
 
-            switch mode {
+            switch syncController.selectedMode {
             case .aura:   auraControls
             case .screen: screenControls
             }
@@ -63,6 +57,7 @@ struct MenuBarView: View {
 
             HStack {
                 Button {
+                    NSApp.activate(ignoringOtherApps: true)
                     openWindow(id: "settings")
                 } label: {
                     Image(systemName: "gear").imageScale(.large)
@@ -73,7 +68,10 @@ struct MenuBarView: View {
 
                 Spacer()
 
-                Button("Open") { openWindow(id: "main") }
+                Button("Open") {
+                    NSApp.activate(ignoringOtherApps: true)
+                    openWindow(id: "main")
+                }
                     .help("Open the main window to browse auras, preview screen zones, and access full controls.")
             }
         }

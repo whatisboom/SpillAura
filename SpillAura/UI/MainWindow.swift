@@ -6,13 +6,7 @@ struct MainWindow: View {
     @EnvironmentObject var auraLibrary: AuraLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @AppStorage("selectedMode") private var mode: Mode = .screen
     @State private var selectedAura: Aura? = nil
-
-    private enum Mode: String, CaseIterable {
-        case aura = "Aura"
-        case screen = "Screen"
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,13 +40,13 @@ struct MainWindow: View {
     @ViewBuilder
     private var topBar: some View {
         HStack {
-            Picker("", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            Picker("", selection: $syncController.selectedMode) {
+                ForEach(SyncMode.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 160)
             .help("Switch between Aura mode (animated color cycles) and Screen Sync (mirrors your display content in real time).")
-            .onChange(of: mode) { _, newMode in
+            .onChange(of: syncController.selectedMode) { _, newMode in
                 guard syncController.connectionStatus == .streaming else { return }
                 switch newMode {
                 case .aura:
@@ -104,7 +98,7 @@ struct MainWindow: View {
 
     @ViewBuilder
     private var contentArea: some View {
-        switch mode {
+        switch syncController.selectedMode {
         case .aura:
             AuraControlView(selectedAura: $selectedAura)
         case .screen:
@@ -116,7 +110,7 @@ struct MainWindow: View {
 
     private var controlRows: some View {
         HStack(spacing: 10) {
-            if mode == .aura {
+            if syncController.selectedMode == .aura {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
                 Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
                     .help("How fast the color animation cycles. Slower is ambient; faster is energetic.")
@@ -149,7 +143,7 @@ struct MainWindow: View {
 
             if syncController.connectionStatus == .disconnected {
                 Button("Start") {
-                    switch mode {
+                    switch syncController.selectedMode {
                     case .aura:
                         if let a = selectedAura ?? auraLibrary.auras.first {
                             syncController.startAura(a)
@@ -159,7 +153,7 @@ struct MainWindow: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(mode == .aura && auraLibrary.auras.isEmpty)
+                .disabled(syncController.selectedMode == .aura && auraLibrary.auras.isEmpty)
                 .help("Begin streaming to your lights.")
             } else {
                 Button("Stop") { syncController.stop() }

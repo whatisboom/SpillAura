@@ -1,8 +1,17 @@
 import Foundation
 import Combine
 
-enum SyncMode: String {
+enum SyncMode: String, CaseIterable, Identifiable {
     case aura, screen
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .aura:   return "Aura"
+        case .screen: return "Screen"
+        }
+    }
 }
 
 enum SyncResponsiveness: String, CaseIterable, Identifiable {

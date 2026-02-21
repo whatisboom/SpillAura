@@ -18,6 +18,13 @@ class SyncController: ObservableObject {
         case error(String)
     }
 
+    @Published var selectedMode: SyncMode = {
+        let raw = UserDefaults.standard.string(forKey: "selectedMode") ?? ""
+        return SyncMode(rawValue: raw) ?? .screen
+    }() {
+        didSet { UserDefaults.standard.set(selectedMode.rawValue, forKey: "selectedMode") }
+    }
+
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected {
         didSet { menuBarIcon = Self.icon(for: connectionStatus) }
     }
@@ -212,11 +219,13 @@ class SyncController: ObservableObject {
     private func resumeLastSession() -> Bool {
         let mode = UserDefaults.standard.string(forKey: "lastMode").flatMap(SyncMode.init)
         if mode == .screen {
+            selectedMode = .screen
             startScreenSync()
             return true
         } else if mode == .aura,
                   let data = UserDefaults.standard.data(forKey: "lastAura"),
                   let aura = try? JSONDecoder().decode(Aura.self, from: data) {
+            selectedMode = .aura
             startAura(aura)
             return true
         }
