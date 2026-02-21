@@ -67,9 +67,7 @@ struct SettingsView: View {
 private struct ScreenSyncSettingsSection: View {
     @EnvironmentObject var syncController: SyncController
     @State private var availableDisplays: [(id: UInt32, name: String)] = []
-    @State private var pulseTask: Task<Void, Never>?
-
-    private var channelCount: Int { syncController.zoneConfig.zones.count }
+    @State private var showingZoneSheet = false
 
     var body: some View {
         GroupBox("Screen Sync") {
@@ -95,48 +93,10 @@ private struct ScreenSyncSettingsSection: View {
                     Divider()
                 }
 
-                // Layout presets — hidden for single-channel setups
-                if channelCount >= 2 {
-                    HStack(spacing: 8) {
-                        Button("Sides") { applyPreset(.twoBar) }
-                            .help("Assign left and right zones — for two Play bars positioned beside your monitor.")
-                        if channelCount >= 3 {
-                            Button("Top + Sides") { applyPreset(.threeBar) }
-                                .help("Assign top, left, and right zones — for three Play bars across the top and sides of your monitor.")
-                        }
-                        if channelCount >= 4 {
-                            Button("Surround") { applyPreset(.fourBar) }
-                                .help("Assign top, right, bottom, and left zones — for a full surround light bar setup.")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                // Zone pickers — one row per channel
-                ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
-                    let channelID = syncController.zoneConfig.zones[i].channelID
-                    LabeledContent("Channel \(channelID)") {
-                        HStack(spacing: 6) {
-                            Picker("", selection: Binding(
-                                get: { syncController.zoneConfig.zones[i].region },
-                                set: { newVal in
-                                    syncController.zoneConfig.zones[i].region = newVal
-                                    syncController.saveZoneConfig()
-                                }
-                            )) {
-                                ForEach(ScreenRegion.allCases) { region in
-                                    Text(region.label).tag(region)
-                                }
-                            }
-                            .frame(maxWidth: 160)
-                            .help("Which screen region this channel samples. Match this to where the physical light bar sits relative to your monitor.")
-                            Button { startIdentify(channel: channelID) } label: {
-                                Image(systemName: "lightbulb")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Flash this light briefly to identify which physical fixture corresponds to this channel.")
-                        }
-                    }
+                // Zone layout
+                LabeledContent("Zone Layout") {
+                    Button("Reconfigure\u{2026}") { showingZoneSheet = true }
+                        .buttonStyle(.borderless)
                 }
 
                 Divider()
@@ -164,31 +124,10 @@ private struct ScreenSyncSettingsSection: View {
             .padding(4)
         }
         .task { await loadDisplays() }
-    }
-
-    private func applyPreset(_ preset: ZoneLayoutPreset) {
-        let regions = preset.regions(for: syncController.zoneConfig.zones.count)
-        for i in syncController.zoneConfig.zones.indices {
-            syncController.zoneConfig.zones[i].region = regions[i]
+        .sheet(isPresented: $showingZoneSheet) {
+            ZoneReconfigureSheet()
+                .environmentObject(syncController)
         }
-        syncController.saveZoneConfig()
-    }
-
-    private func startIdentify(channel: UInt8) {
-        pulseTask?.cancel()
-        syncController.identify(channel: channel)
-        pulseTask = Task {
-            try? await Task.sleep(for: .seconds(8))
-            if !Task.isCancelled {
-                stopIdentify()
-            }
-        }
-    }
-
-    private func stopIdentify() {
-        pulseTask?.cancel()
-        pulseTask = nil
-        syncController.stopIdentify()
     }
 
     private func loadDisplays() async {
@@ -204,6 +143,37 @@ private struct ScreenSyncSettingsSection: View {
             return (id: UInt32(display.displayID), name: name)
         }
         await MainActor.run { availableDisplays = displays }
+    }
+}
+
+// MARK: - ZoneReconfigureSheet
+
+private struct ZoneReconfigureSheet: View {
+    @EnvironmentObject var syncController: SyncController
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Configure Zones")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            ZoneSetupStep(
+                channelCount: syncController.zoneConfig.zones.count,
+                config: Binding(
+                    get: { syncController.zoneConfig },
+                    set: { syncController.zoneConfig = $0; syncController.saveZoneConfig() }
+                )
+            )
+
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 400)
     }
 }
 
