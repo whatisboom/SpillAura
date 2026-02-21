@@ -23,45 +23,11 @@ struct ScreenSyncView: View {
             }
 
             // Live preview canvas
-            GeometryReader { geo in
-                ZStack {
-                    Color.black
-
-                    ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
-                        let zone = syncController.zoneConfig.zones[i]
-                        let isStreaming = syncController.connectionStatus == .streaming
-                        let previewColor = syncController.previewColors
-                            .first(where: { $0.channel == zone.channelID })
-                        let fill: Color = isStreaming
-                            ? Color(
-                                red:   Double(previewColor?.r ?? 0),
-                                green: Double(previewColor?.g ?? 0),
-                                blue:  Double(previewColor?.b ?? 0)
-                              )
-                            : Color.secondary.opacity(0.25)
-                        let label = isStreaming ? "Ch \(zone.channelID)" : zone.region.label
-                        let c = zone.region.centroid
-
-                        ZStack {
-                            zone.region.previewPath(in: CGRect(origin: .zero, size: geo.size))
-                                .fill(fill)
-                            Text(label)
-                                .font(.caption2)
-                                .foregroundStyle(.white)
-                                .shadow(color: .black, radius: 1)
-                                .position(x: c.x * geo.size.width, y: c.y * geo.size.height)
-                        }
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                )
-            }
-            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+            ZonePreviewCanvas(
+                zones: syncController.zoneConfig.zones,
+                liveColors: syncController.connectionStatus == .streaming ? syncController.previewColors : []
+            )
             .frame(maxWidth: 480)
-            .help("Live preview of your screen zones. Colors update in real time while streaming.")
 
             if syncController.connectionStatus != .streaming {
                 Text("Start Screen Sync to see live colors.")

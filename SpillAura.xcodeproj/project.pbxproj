@@ -12,6 +12,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CA0243A62F49C3C900F9A860 /* SpillAura.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = SpillAura.xcodeproj; sourceTree = "<group>"; };
 		CA5B0B0B2F45794800EE4898 /* SpillAura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpillAura.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA5B0B1A2F45800000EE4898 /* SpillAuraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpillAuraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -49,6 +50,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		CA0243A72F49C3C900F9A860 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		CA5B0B022F45794800EE4898 = {
 			isa = PBXGroup;
 			children = (
@@ -148,6 +156,12 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CA5B0B0C2F45794800EE4898 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = CA0243A72F49C3C900F9A860 /* Products */;
+					ProjectRef = CA0243A62F49C3C900F9A860 /* SpillAura.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				CA5B0B0A2F45794800EE4898 /* SpillAura */,
@@ -447,7 +461,6 @@
 			productName = SpillAuraCore;
 		};
 /* End XCSwiftPackageProductDependency section */
-
 	};
 	rootObject = CA5B0B032F45794800EE4898 /* Project object */;
 }
