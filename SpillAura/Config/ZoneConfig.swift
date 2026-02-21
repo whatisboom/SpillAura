@@ -154,3 +154,17 @@ struct ZoneConfig: Codable {
         UserDefaults.standard.set(try! JSONEncoder().encode(self), forKey: "zoneConfig")
     }
 }
+
+enum ZoneLayoutPreset {
+    case twoBar, threeBar, fourBar
+
+    func regions(for count: Int) -> [ScreenRegion] {
+        let all: [ScreenRegion]
+        switch self {
+        case .twoBar:   all = [.left, .right]
+        case .threeBar: all = [.top, .left, .right]
+        case .fourBar:  all = [.top, .right, .bottom, .left]
+        }
+        return (0..<count).map { i in i < all.count ? all[i] : .fullScreen }
+    }
+}
