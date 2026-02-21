@@ -97,6 +97,10 @@ class SyncController: ObservableObject {
     func startVibe(_ vibe: Vibe) {
         activeVibe = vibe
         activeSource = PaletteSource(vibe: vibe)
+        UserDefaults.standard.set("vibe", forKey: "lastMode")
+        if let data = try? JSONEncoder().encode(vibe) {
+            UserDefaults.standard.set(data, forKey: "lastVibe")
+        }
         if connectionStatus == .disconnected {
             startSession()
         }
@@ -114,6 +118,7 @@ class SyncController: ObservableObject {
     func startScreenSync() {
         activeVibe = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
+        UserDefaults.standard.set("screen", forKey: "lastMode")
         if connectionStatus == .disconnected {
             startSession()
         }
