@@ -128,7 +128,13 @@ struct ZoneConfig: Codable {
         guard let data = UserDefaults.standard.data(forKey: "zoneConfig") else {
             return defaultConfig(channelCount: channelCount)
         }
-        return try! JSONDecoder().decode(ZoneConfig.self, from: data)
+        do {
+            return try JSONDecoder().decode(ZoneConfig.self, from: data)
+        } catch {
+            print("[ZoneConfig] Incompatible stored config, resetting: \(error)")
+            UserDefaults.standard.removeObject(forKey: "zoneConfig")
+            return defaultConfig(channelCount: channelCount)
+        }
     }
 
     func save() {
