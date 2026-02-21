@@ -50,6 +50,7 @@ struct MainWindow: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 160)
+            .help("Aura: animated color cycles. Screen: match your display content.")
             .onChange(of: mode) { _, _ in
                 if syncController.connectionStatus != .disconnected {
                     syncController.stop()
@@ -108,6 +109,7 @@ struct MainWindow: View {
             if mode == .aura {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
                 Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
+                    .help("Animation speed of the current aura (0.25× to 1.5×)")
                 Image(systemName: "hare").foregroundStyle(.secondary)
 
                 Divider().frame(height: 16)
@@ -115,6 +117,7 @@ struct MainWindow: View {
 
             Image(systemName: "sun.min").foregroundStyle(.secondary)
             Slider(value: $syncController.brightness, in: 0...1)
+                .help("Overall brightness of all lights")
             Image(systemName: "sun.max").foregroundStyle(.secondary)
         }
     }
@@ -130,6 +133,7 @@ struct MainWindow: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .help("Open Settings")
 
             Spacer()
 
@@ -146,9 +150,11 @@ struct MainWindow: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(mode == .aura && auraLibrary.auras.isEmpty)
+                .help("Begin streaming to your Hue lights")
             } else {
                 Button("Stop") { syncController.stop() }
                     .buttonStyle(.bordered)
+                    .help("Stop the active streaming session")
             }
         }
     }

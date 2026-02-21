@@ -50,16 +50,19 @@ struct SetupView: View {
                         HStack {
                             TextField("Manual IP (e.g. 192.168.1.100)", text: $manualIP)
                                 .textFieldStyle(.roundedBorder)
+                                .help("Enter the bridge IP address manually if it wasn't found by discovery")
                             Button("Use") {
                                 selectedBridgeIP = manualIP
                             }
                             .disabled(manualIP.isEmpty)
+                            .help("Use this IP address as the bridge address")
                         }
 
                         Button(discovery.isSearching ? "Searching…" : "Search Again") {
                             discovery.startDiscovery()
                         }
                         .disabled(discovery.isSearching)
+                        .help("Scan the local network for Hue bridges via mDNS")
                     }
                     .padding(4)
                 }
@@ -79,6 +82,7 @@ struct SetupView: View {
                                 Button("Start Pairing") {
                                     pairingState = .waitingForButton
                                 }
+                                .help("Begin the pairing process — you'll be prompted to press the button on your bridge")
                             case .waitingForButton:
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Press the physical button on your Hue bridge now, then tap Pair.")
@@ -86,6 +90,7 @@ struct SetupView: View {
                                         Button("Pair") {
                                             Task { await pairWithBridge() }
                                         }
+                                        .help("Complete pairing with the bridge")
                                         Button("Cancel") { pairingState = .idle }
                                             .buttonStyle(.plain)
                                             .foregroundStyle(.secondary)

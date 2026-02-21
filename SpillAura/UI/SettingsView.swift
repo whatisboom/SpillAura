@@ -24,6 +24,7 @@ struct SettingsView: View {
                                 Spacer()
                                 Button("Re-pair") { showPairingFlow = true }
                                     .buttonStyle(.borderless)
+                                    .help("Pair with a different Hue bridge or re-authenticate")
                             }
                             Divider()
                             EntertainmentGroupPicker(credentials: creds, auth: auth)
@@ -87,6 +88,7 @@ private struct ScreenSyncSettingsSection: View {
                             }
                         }
                         .frame(maxWidth: 200)
+                        .help("Which monitor to sample for screen sync colors")
                     }
                     Divider()
                 }
@@ -94,8 +96,11 @@ private struct ScreenSyncSettingsSection: View {
                 // Layout presets
                 HStack(spacing: 8) {
                     Button("2-Bar (L/R)")    { applyPreset(.twoBar) }
+                        .help("Assign left and right triangles — for two Play bars beside your monitor")
                     Button("3-Bar (T/L/R)")  { applyPreset(.threeBar) }
+                        .help("Assign top, left, and right triangles")
                     Button("4-Bar Surround") { applyPreset(.fourBar) }
+                        .help("Assign top, right, bottom, and left triangles for full surround setups")
                 }
                 .buttonStyle(.bordered)
 
@@ -103,25 +108,25 @@ private struct ScreenSyncSettingsSection: View {
                 ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
                     let channelID = syncController.zoneConfig.zones[i].channelID
                     LabeledContent("Channel \(channelID)") {
-                        Picker("", selection: Binding(
-                            get: { syncController.zoneConfig.zones[i].region },
-                            set: { newVal in
-                                syncController.zoneConfig.zones[i].region = newVal
-                                syncController.saveZoneConfig()
+                        HStack(spacing: 6) {
+                            Picker("", selection: Binding(
+                                get: { syncController.zoneConfig.zones[i].region },
+                                set: { newVal in
+                                    syncController.zoneConfig.zones[i].region = newVal
+                                    syncController.saveZoneConfig()
+                                }
+                            )) {
+                                ForEach(ScreenRegion.allCases) { region in
+                                    Text(region.label).tag(region)
+                                }
                             }
-                        )) {
-                            ForEach(ScreenRegion.allCases) { region in
-                                Text(region.label).tag(region)
+                            .frame(maxWidth: 160)
+                            .help("Screen region this light samples for color")
+                            Button { startIdentify(channel: channelID) } label: {
+                                Image(systemName: "lightbulb")
                             }
-                        }
-                        .frame(maxWidth: 160)
-                    }
-                    .contentShape(Rectangle())
-                    .onHover { hovering in
-                        if hovering {
-                            startIdentify(channel: channelID)
-                        } else {
-                            stopIdentify()
+                            .buttonStyle(.borderless)
+                            .help("Pulse this light")
                         }
                     }
                 }
@@ -143,6 +148,7 @@ private struct ScreenSyncSettingsSection: View {
                             in: 0...1
                         )
                         .frame(maxWidth: 120)
+                        .help("Uniform: all pixels in the zone contribute equally. Edge: pixels at the screen edge — where your light bar sits — are weighted more heavily.")
                         Text("Edge").font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -343,6 +349,7 @@ private struct AutoStartRow: View {
 
     var body: some View {
         Toggle("Start streaming automatically on launch", isOn: $autoStartOnLaunch)
+            .help("Resumes the last active mode (Aura or Screen Sync) when the app launches")
     }
 }
 
@@ -353,6 +360,7 @@ private struct LaunchHiddenRow: View {
 
     var body: some View {
         Toggle("Launch with window hidden", isOn: $launchWindowHidden)
+            .help("Open SpillAura to the menu bar only — no window appears on launch")
     }
 }
 

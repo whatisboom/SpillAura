@@ -19,6 +19,7 @@ struct ScreenSyncView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .help("How quickly the lights react to screen changes. Instant tracks fast motion; Cinematic gives smooth transitions.")
             }
 
             // Live preview canvas

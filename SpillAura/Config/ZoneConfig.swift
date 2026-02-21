@@ -120,7 +120,10 @@ struct ZoneConfig: Codable {
     var edgeBias: Double
 
     static func defaultConfig(channelCount: Int) -> ZoneConfig {
-        let zones = (0..<max(1, channelCount)).map { i in Zone(channelID: UInt8(i), region: .fullScreen) }
+        let defaults: [ScreenRegion] = [.topTriangle, .rightTriangle, .bottomTriangle, .leftTriangle]
+        let zones = (0..<max(1, channelCount)).map { i in
+            Zone(channelID: UInt8(i), region: i < defaults.count ? defaults[i] : .fullScreen)
+        }
         return ZoneConfig(displayID: 0, zones: zones, edgeBias: 0.5)
     }
 
