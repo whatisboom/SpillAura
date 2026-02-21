@@ -30,39 +30,39 @@ struct ZoneSetupStep: View {
             // Per-channel pickers with colored labels
             ForEach(config.zones.indices, id: \.self) { i in
                 let channelColor = ChannelColor.color(for: i, of: channelCount)
-                LabeledContent {
-                    HStack(spacing: 8) {
-                        Picker("", selection: $config.zones[i].region) {
-                            ForEach(ScreenRegion.allCases) { region in
-                                Text(region.label).tag(region)
-                            }
-                        }
-                        .frame(maxWidth: 160)
-                        .help("Which screen region this channel samples.")
-
-                        if let onIdentify {
-                            Button {
-                                onIdentify(config.zones[i].channelID, channelColor)
-                            } label: {
-                                Image(systemName: "lightbulb.fill")
-                            }
-                            .buttonStyle(.borderless)
-                            .foregroundStyle(channelColor.swiftUIColor)
-                            .help("Light this channel in \(channelColor.name) to identify it.")
-                        }
-                    }
-                } label: {
+                HStack(spacing: 8) {
                     HStack(spacing: 6) {
                         Circle()
                             .fill(channelColor.swiftUIColor)
                             .frame(width: 10, height: 10)
                         Text(channelColor.name)
                     }
+
+                    Spacer()
+
+                    Picker("", selection: $config.zones[i].region) {
+                        ForEach(ScreenRegion.allCases) { region in
+                            Text(region.label).tag(region)
+                        }
+                    }
+                    .frame(maxWidth: 160)
+                    .help("Which screen region this channel samples.")
+
+                    if let onIdentify {
+                        Button {
+                            onIdentify(config.zones[i].channelID, channelColor)
+                        } label: {
+                            Image(systemName: "lightbulb.fill")
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(channelColor.swiftUIColor)
+                        .help("Light this channel in \(channelColor.name) to identify it.")
+                    }
                 }
             }
 
             // Zone preview
-            ZonePreviewCanvas(zones: config.zones)
+            ZonePreviewCanvas(zones: config.zones, showLabels: true)
                 .frame(maxWidth: 400)
         }
     }

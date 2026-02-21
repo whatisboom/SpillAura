@@ -5,6 +5,7 @@ import SwiftUI
 struct ZonePreviewCanvas: View {
     let zones: [Zone]
     var liveColors: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
+    var showLabels: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -23,27 +24,29 @@ struct ZonePreviewCanvas: View {
                         zone.region.previewPath(in: CGRect(origin: .zero, size: geo.size))
                             .fill(fill)
 
-                        Group {
-                            if previewColor != nil {
-                                // Streaming: colored dot + region name
-                                HStack(spacing: 3) {
-                                    Circle()
-                                        .fill(channelColor.swiftUIColor)
-                                        .frame(width: 6, height: 6)
-                                    Text(zone.region.label)
+                        if showLabels {
+                            Group {
+                                if previewColor != nil {
+                                    // Streaming: colored dot + region name
+                                    HStack(spacing: 3) {
+                                        Circle()
+                                            .fill(channelColor.swiftUIColor)
+                                            .frame(width: 6, height: 6)
+                                        Text(zone.region.label)
+                                    }
+                                } else {
+                                    // Static: color name
+                                    Text(channelColor.name)
                                 }
-                            } else {
-                                // Static: color name
-                                Text(channelColor.name)
                             }
+                            .font(.caption2)
+                            .foregroundStyle(.white)
+                            .shadow(color: .black, radius: 1)
+                            .position(
+                                x: zone.region.centroid.x * geo.size.width,
+                                y: zone.region.centroid.y * geo.size.height
+                            )
                         }
-                        .font(.caption2)
-                        .foregroundStyle(.white)
-                        .shadow(color: .black, radius: 1)
-                        .position(
-                            x: zone.region.centroid.x * geo.size.width,
-                            y: zone.region.centroid.y * geo.size.height
-                        )
                     }
                 }
             }
