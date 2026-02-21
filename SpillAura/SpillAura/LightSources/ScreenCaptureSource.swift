@@ -3,7 +3,7 @@ import ScreenCaptureKit
 import CoreMedia
 import CoreVideo
 
-/// A `LightSource` that samples the main display and maps zone regions to channel colors.
+/// A `LightSource` that samples a specific display and maps zone regions to channel colors.
 ///
 /// SCKit delivers frames on a background serial queue. The delegate processes each frame
 /// immediately — weighted edge average + EMA smoothing — then stores the result under
@@ -12,7 +12,7 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 
     // MARK: - Private state
 
-    private let zones: [Zone]
+    private let config: ZoneConfig
     private let responsiveness: SyncResponsiveness
 
     private var stream: SCStream?
@@ -27,10 +27,10 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 
     // MARK: - Init / deinit
 
-    init(zones: [Zone], responsiveness: SyncResponsiveness) {
-        self.zones = zones
+    init(config: ZoneConfig, responsiveness: SyncResponsiveness) {
+        self.config = config
         self.responsiveness = responsiveness
-        self.smoothed = zones.map { (channel: $0.channelID, r: 0, g: 0, b: 0) }
+        self.smoothed = config.zones.map { (channel: $0.channelID, r: 0, g: 0, b: 0) }
         super.init()
         Task { await startCapture() }
     }
@@ -60,21 +60,26 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
             let content = try await SCShareableContent.excludingDesktopWindows(
                 false, onScreenWindowsOnly: false
             )
-            guard let display = content.displays.first else {
+
+            let targetID: CGDirectDisplayID = config.displayID == 0
+                ? CGMainDisplayID()
+                : CGDirectDisplayID(config.displayID)
+            guard let display = content.displays.first(where: { $0.displayID == targetID })
+                             ?? content.displays.first else {
                 print("[ScreenCaptureSource] No display found")
                 return
             }
 
             let filter = SCContentFilter(display: display, excludingWindows: [])
 
-            let config = SCStreamConfiguration()
-            config.width = 160
-            config.height = 90
-            config.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(responsiveness.frameRate))
-            config.queueDepth = 3
-            config.pixelFormat = kCVPixelFormatType_32BGRA
+            let streamConfig = SCStreamConfiguration()
+            streamConfig.width = 160
+            streamConfig.height = 90
+            streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(responsiveness.frameRate))
+            streamConfig.queueDepth = 3
+            streamConfig.pixelFormat = kCVPixelFormatType_32BGRA
 
-            let newStream = SCStream(filter: filter, configuration: config, delegate: self)
+            let newStream = SCStream(filter: filter, configuration: streamConfig, delegate: self)
             try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: frameQueue)
             try await newStream.startCapture()
             stream = newStream
@@ -123,11 +128,12 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
         let factor = Float(responsiveness.emaFactor)
         var result: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
-        for (i, zone) in zones.enumerated() {
-            let zx = Int(zone.region.minX  * Double(pw))
-            let zy = Int(zone.region.minY  * Double(ph))
-            let zw = max(1, Int(zone.region.width  * Double(pw)))
-            let zh = max(1, Int(zone.region.height * Double(ph)))
+        for (i, zone) in config.zones.enumerated() {
+            let r = zone.region.rect
+            let zx = Int(r.minX   * Double(pw))
+            let zy = Int(r.minY   * Double(ph))
+            let zw = max(1, Int(r.width  * Double(pw)))
+            let zh = max(1, Int(r.height * Double(ph)))
 
             let edgeW = max(1, Int(Double(zw) * 0.2))
             let edgeH = max(1, Int(Double(zh) * 0.2))
