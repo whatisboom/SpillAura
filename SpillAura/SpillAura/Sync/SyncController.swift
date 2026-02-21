@@ -104,7 +104,7 @@ class SyncController: ObservableObject {
     func startVibe(_ vibe: Vibe) {
         activeVibe = vibe
         activeSource = PaletteSource(vibe: vibe)
-        UserDefaults.standard.set("vibe", forKey: "lastMode")
+        UserDefaults.standard.set(SyncMode.vibe.rawValue, forKey: "lastMode")
         if let data = try? JSONEncoder().encode(vibe) {
             UserDefaults.standard.set(data, forKey: "lastVibe")
         }
@@ -125,7 +125,7 @@ class SyncController: ObservableObject {
     func startScreenSync() {
         activeVibe = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
-        UserDefaults.standard.set("screen", forKey: "lastMode")
+        UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: "lastMode")
         if connectionStatus == .disconnected {
             startSession()
         }
@@ -180,11 +180,11 @@ class SyncController: ObservableObject {
         hasAutoStarted = true
         guard UserDefaults.standard.bool(forKey: "autoStartOnLaunch") else { return }
 
-        let mode = UserDefaults.standard.string(forKey: "lastMode")
+        let mode = UserDefaults.standard.string(forKey: "lastMode").flatMap(SyncMode.init)
 
-        if mode == "screen" {
+        if mode == .screen {
             startScreenSync()
-        } else if mode == "vibe",
+        } else if mode == .vibe,
                   let data = UserDefaults.standard.data(forKey: "lastVibe"),
                   let vibe = try? JSONDecoder().decode(Vibe.self, from: data) {
             startVibe(vibe)

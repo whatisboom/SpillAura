@@ -1,6 +1,10 @@
 import Foundation
 import Combine
 
+enum SyncMode: String {
+    case vibe, screen
+}
+
 enum SyncResponsiveness: String, CaseIterable, Identifiable {
     case instant, snappy, balanced, smooth, cinematic
 
