@@ -108,7 +108,6 @@ struct MainWindow: View {
             if mode == .vibe {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
                 Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
-                    .frame(width: 100)
                 Image(systemName: "hare").foregroundStyle(.secondary)
 
                 Divider().frame(height: 16)
