@@ -43,6 +43,16 @@ struct MenuBarView: View {
 
             Divider()
 
+            HStack(spacing: 6) {
+                Image(systemName: "sun.min")
+                    .foregroundStyle(.secondary)
+                Slider(value: $syncController.brightness, in: 0...1)
+                Image(systemName: "sun.max")
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
             Button("Open Settings") { openWindow(id: "main") }
         }
         .padding()
@@ -115,6 +125,11 @@ struct MenuBarView: View {
 
                 Button("Stop") { syncController.stop() }
                     .disabled(syncController.connectionStatus == .disconnected)
+            }
+        }
+        .onChange(of: syncController.responsiveness) { _, _ in
+            if syncController.connectionStatus == .streaming {
+                syncController.startScreenSync()
             }
         }
     }

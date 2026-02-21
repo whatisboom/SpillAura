@@ -26,6 +26,13 @@ class SyncController: ObservableObject {
         didSet { UserDefaults.standard.set(responsiveness.rawValue, forKey: "syncResponsiveness") }
     }
 
+    @Published var brightness: Float = {
+        let stored = UserDefaults.standard.float(forKey: "brightness")
+        return stored == 0 ? 1.0 : stored
+    }() {
+        didSet { UserDefaults.standard.set(brightness, forKey: "brightness") }
+    }
+
     /// Latest per-channel colors from the active source. Updated every tick while streaming.
     /// Used by ScreenSyncView for the live zone preview.
     @Published private(set) var previewColors: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
@@ -193,9 +200,11 @@ class SyncController: ObservableObject {
                         var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
                         if let ch = self.pulsedChannel,
                            let idx = colors.firstIndex(where: { $0.channel == ch }) {
-                            let brightness = Float(0.5 + 0.5 * sin(elapsed * .pi))
-                            colors[idx] = (channel: ch, r: brightness, g: brightness, b: brightness)
+                            let pulse = Float(0.5 + 0.5 * sin(elapsed * .pi))
+                            colors[idx] = (channel: ch, r: pulse, g: pulse, b: pulse)
                         }
+                        let scale = self.brightness
+                        colors = colors.map { (channel: $0.channel, r: $0.r * scale, g: $0.g * scale, b: $0.b * scale) }
                         self.session?.sendColors(colors)
                         self.previewColors = colors
                     }
