@@ -45,9 +45,12 @@ class SyncController: ObservableObject {
     private var activeSource: LightSource? = nil
     private var channelCount: Int = 1
 
-    /// When set, the streaming loop overrides this channel with a pulsing white signal
-    /// so the user can physically identify which light maps to which channel.
-    var pulsedChannel: UInt8? = nil
+    /// True when the current session was started solely for channel identification.
+    /// Lets stopIdentify() know it owns the session and should tear it down.
+    private var isIdentifySession: Bool = false
+
+    /// Set by identify(channel:). The streaming loop reads this to pulse the light.
+    private(set) var pulsedChannel: UInt8? = nil
 
     // MARK: - Public API
 
@@ -85,8 +88,35 @@ class SyncController: ObservableObject {
         }
     }
 
+    /// Pulse one channel white so the user can physically identify which light it is.
+    /// If not currently streaming, starts a temporary session. If already streaming,
+    /// the streaming loop overrides that channel's color in-place.
+    /// Switching channels while identifying just swaps the source — no reconnect.
+    func identify(channel: UInt8) {
+        pulsedChannel = channel
+        switch connectionStatus {
+        case .disconnected:
+            isIdentifySession = true
+            activeSource = IdentifySource(channel: channel)
+            startSession()
+        case .streaming where isIdentifySession:
+            activeSource = IdentifySource(channel: channel)
+        default:
+            break  // real session active — pulsedChannel override in streaming loop handles it
+        }
+    }
+
+    /// Stop channel identification. If a temporary identify session was started, tears it down.
+    func stopIdentify() {
+        pulsedChannel = nil
+        guard isIdentifySession else { return }
+        isIdentifySession = false
+        stop()
+    }
+
     /// Stop the entertainment session.
     func stop() {
+        isIdentifySession = false
         session?.stop()
         activeSource = nil
         activeVibe = nil
@@ -180,6 +210,24 @@ class SyncController: ObservableObject {
 
         if case .idle = state { } else if let errorMessage = session?.lastError {
             connectionStatus = .error(errorMessage)
+        }
+    }
+}
+
+// MARK: - IdentifySource
+
+/// Pulses a single channel white at 2 Hz; all other channels black.
+/// Used by identify(channel:) to let users match channel numbers to physical lights.
+private final class IdentifySource: LightSource {
+    let channel: UInt8
+    init(channel: UInt8) { self.channel = channel }
+
+    func nextColors(channelCount: Int, at timestamp: TimeInterval) -> [(channel: UInt8, r: Float, g: Float, b: Float)] {
+        let brightness = Float(0.5 + 0.5 * sin(timestamp * .pi * 4))
+        return (0..<channelCount).map { i in
+            let ch = UInt8(i)
+            let v = ch == channel ? brightness : 0
+            return (channel: ch, r: v, g: v, b: v)
         }
     }
 }

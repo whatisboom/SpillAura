@@ -140,7 +140,7 @@ struct ScreenSyncView: View {
     private func startHighlight(channel: UInt8) {
         pulseTask?.cancel()
         highlightedChannel = channel
-        syncController.pulsedChannel = channel
+        syncController.identify(channel: channel)
         pulseTask = Task {
             try? await Task.sleep(for: .seconds(8))
             if !Task.isCancelled {
@@ -153,7 +153,7 @@ struct ScreenSyncView: View {
         pulseTask?.cancel()
         pulseTask = nil
         highlightedChannel = nil
-        syncController.pulsedChannel = nil
+        syncController.stopIdentify()
     }
 
     private func loadDisplays() async {
