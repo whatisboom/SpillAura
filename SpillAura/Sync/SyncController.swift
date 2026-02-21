@@ -176,21 +176,21 @@ class SyncController: ObservableObject {
         }
     }
 
-    /// Pulse one channel white so the user can physically identify which light it is.
+    /// Light one channel in a solid identifying color so the user can match it to the UI label.
     /// If not currently streaming, starts a temporary session. If already streaming,
     /// the streaming loop overrides that channel's color in-place.
     /// Switching channels while identifying just swaps the source — no reconnect.
-    func identify(channel: UInt8) {
+    func identify(channel: UInt8, color: ChannelColor) {
         pulsedChannel = channel
-        Task { await syncActor.setPulsedChannel(channel) }
+        Task { await syncActor.setPulsedIdentify((channel, color.r, color.g, color.b)) }
         switch connectionStatus {
         case .disconnected:
             isIdentifySession = true
-            activeSource = IdentifySource(channel: channel)
+            activeSource = IdentifySource(channel: channel, r: color.r, g: color.g, b: color.b)
             Task { await syncActor.setSource(activeSource) }
             startSession()
         case .streaming where isIdentifySession:
-            activeSource = IdentifySource(channel: channel)
+            activeSource = IdentifySource(channel: channel, r: color.r, g: color.g, b: color.b)
             Task { await syncActor.setSource(activeSource) }
         default:
             break  // real session active — pulsedChannel override in streaming loop handles it
@@ -200,7 +200,7 @@ class SyncController: ObservableObject {
     /// Stop channel identification. If a temporary identify session was started, tears it down.
     func stopIdentify() {
         pulsedChannel = nil
-        Task { await syncActor.setPulsedChannel(nil) }
+        Task { await syncActor.setPulsedIdentify(nil) }
         guard isIdentifySession else { return }
         isIdentifySession = false
         stop()
@@ -334,18 +334,22 @@ extension SyncController {
 
 // MARK: - IdentifySource
 
-/// Pulses a single channel white at 2 Hz; all other channels black.
-/// Used by identify(channel:) to let users match channel numbers to physical lights.
+/// Shows a single channel in a steady solid color; all other channels black.
+/// Used by identify(channel:color:) to let users match color-coded labels to physical lights.
 private final class IdentifySource: LightSource, @unchecked Sendable {
     let channel: UInt8
-    init(channel: UInt8) { self.channel = channel }
+    let r: Float, g: Float, b: Float
+    init(channel: UInt8, r: Float, g: Float, b: Float) {
+        self.channel = channel
+        self.r = r; self.g = g; self.b = b
+    }
 
     func nextColors(channelCount: Int, at timestamp: TimeInterval) -> [(channel: UInt8, r: Float, g: Float, b: Float)] {
-        let brightness = Float(0.5 + 0.5 * sin(timestamp * .pi))
-        return (0..<channelCount).map { i in
+        (0..<channelCount).map { i in
             let ch = UInt8(i)
-            let v = ch == channel ? brightness : 0
-            return (channel: ch, r: v, g: v, b: v)
+            return ch == channel
+                ? (channel: ch, r: r, g: g, b: b)
+                : (channel: ch, r: 0, g: 0, b: 0)
         }
     }
 }
