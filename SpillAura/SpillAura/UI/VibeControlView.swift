@@ -82,16 +82,11 @@ private struct VibeCard: View {
     }
 
     private var speedLabel: String {
-        switch vibe.type {
-        case .static: return "Static"
-        case .dynamic:
-            switch vibe.speed {
-            case ..<2:  return "Very fast"
-            case ..<5:  return "Fast"
-            case ..<10: return "Medium"
-            case ..<20: return "Slow"
-            default:    return "Very slow"
-            }
-        }
+        guard vibe.type == .dynamic else { return "Static" }
+        if vibe.speed < 2  { return "Very fast" }
+        if vibe.speed < 5  { return "Fast" }
+        if vibe.speed < 10 { return "Medium" }
+        if vibe.speed < 20 { return "Slow" }
+        return "Very slow"
     }
 }
