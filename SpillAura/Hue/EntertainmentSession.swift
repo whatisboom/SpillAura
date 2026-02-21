@@ -20,6 +20,7 @@ final class EntertainmentSession: ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var lastError: String? = nil
+    private(set) var sender: HueSender?
 
     // MARK: - Private
 
@@ -28,7 +29,6 @@ final class EntertainmentSession: ObservableObject {
     private let channelCount: Int
 
     private var connection: NWConnection?
-    private var sequenceNumber: UInt8 = 0
     private var reconnectAttempts: Int = 0
     private static let maxReconnectAttempts = 3
 
@@ -58,38 +58,6 @@ final class EntertainmentSession: ObservableObject {
     func stop() {
         guard state != .idle && state != .deactivating else { return }
         teardown()
-    }
-
-    /// Send a packet setting all channels to the given RGB color.
-    /// Only valid when `state == .streaming`.
-    func sendColor(r: Float, g: Float, b: Float) {
-        guard state == .streaming, let connection else { return }
-
-        let channels = (0..<channelCount).map { UInt16($0) }
-        let packet = ColorPacketBuilder.buildPacket(
-            r: r,
-            g: g,
-            b: b,
-            channels: channels,
-            sequence: sequenceNumber,
-            groupID: groupID
-        )
-        sequenceNumber = sequenceNumber == 255 ? 0 : sequenceNumber + 1
-
-        connection.send(content: packet, completion: .idempotent)
-    }
-
-    /// Send a packet with per-channel colors.
-    /// Only valid when `state == .streaming`.
-    func sendColors(_ channelColors: [(channel: UInt8, r: Float, g: Float, b: Float)]) {
-        guard state == .streaming, let connection else { return }
-        let packet = ColorPacketBuilder.buildPacket(
-            channelColors: channelColors,
-            sequence: sequenceNumber,
-            groupID: groupID
-        )
-        sequenceNumber = sequenceNumber == 255 ? 0 : sequenceNumber + 1
-        connection.send(content: packet, completion: .idempotent)
     }
 
     // MARK: - REST Activation
@@ -266,6 +234,9 @@ final class EntertainmentSession: ObservableObject {
         switch newState {
         case .ready:
             reconnectAttempts = 0
+            if let conn = connection {
+                sender = HueSender(connection: conn, groupID: groupID)
+            }
             state = .streaming
 
         case .failed(let error):
@@ -285,6 +256,7 @@ final class EntertainmentSession: ObservableObject {
 
         case .cancelled:
             connection = nil
+            sender = nil
 
         case .waiting(let error):
             print("[EntertainmentSession] connection waiting: \(error)")
@@ -306,6 +278,7 @@ final class EntertainmentSession: ObservableObject {
 
     private func teardown() {
         state = .deactivating
+        sender = nil
         connection?.cancel()
         connection = nil
         deactivateREST()
@@ -324,6 +297,32 @@ final class EntertainmentSession: ObservableObject {
             index = nextIndex
         }
         return data
+    }
+}
+
+// MARK: - HueSender
+
+/// Thread-safe, non-isolated UDP send handle. Created when DTLS reaches .ready.
+/// Callable from any actor or non-isolated context.
+final class HueSender: @unchecked Sendable {
+    private let connection: NWConnection
+    private let groupID: String
+    private let lock = NSLock()
+    nonisolated(unsafe) private var sequenceNumber: UInt8 = 0
+
+    init(connection: NWConnection, groupID: String) {
+        self.connection = connection
+        self.groupID = groupID
+    }
+
+    nonisolated func send(_ channelColors: [(channel: UInt8, r: Float, g: Float, b: Float)]) {
+        lock.lock()
+        let seq = sequenceNumber
+        sequenceNumber = sequenceNumber &+ 1
+        lock.unlock()
+        let packet = ColorPacketBuilder.buildPacket(
+            channelColors: channelColors, sequence: seq, groupID: groupID)
+        connection.send(content: packet, completion: .idempotent)
     }
 }
 

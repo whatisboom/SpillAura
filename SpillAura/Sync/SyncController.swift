@@ -46,14 +46,20 @@ class SyncController: ObservableObject {
         let stored = UserDefaults.standard.float(forKey: "brightness")
         return stored == 0 ? 1.0 : stored
     }() {
-        didSet { UserDefaults.standard.set(brightness, forKey: "brightness") }
+        didSet {
+            UserDefaults.standard.set(brightness, forKey: "brightness")
+            Task { await syncActor.setBrightness(brightness) }
+        }
     }
 
     @Published var speedMultiplier: Double = {
         let stored = UserDefaults.standard.double(forKey: "speedMultiplier")
         return stored == 0 ? 1.0 : stored
     }() {
-        didSet { UserDefaults.standard.set(speedMultiplier, forKey: "speedMultiplier") }
+        didSet {
+            UserDefaults.standard.set(speedMultiplier, forKey: "speedMultiplier")
+            Task { await syncActor.setSpeedMultiplier(speedMultiplier) }
+        }
     }
 
     /// Latest per-channel colors from the active source. Updated every tick while streaming.
@@ -118,7 +124,6 @@ class SyncController: ObservableObject {
     private var channelCount: Int = 1
 
     private var hasAutoStarted = false
-    private var streamingTask: Task<Void, Never>?
 
     /// True when the current session was started solely for channel identification.
     /// Lets stopIdentify() know it owns the session and should tear it down.
@@ -133,6 +138,7 @@ class SyncController: ObservableObject {
     func startAura(_ aura: Aura) {
         activeAura = aura
         activeSource = PaletteSource(aura: aura)
+        Task { await syncActor.setSource(activeSource) }
         UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: "lastMode")
         if let data = try? JSONEncoder().encode(aura) {
             UserDefaults.standard.set(data, forKey: "lastAura")
@@ -147,6 +153,7 @@ class SyncController: ObservableObject {
         guard connectionStatus == .disconnected else { return }
         activeAura = nil
         activeSource = StaticColorSource(r: r, g: g, b: b)
+        Task { await syncActor.setSource(activeSource) }
         startSession()
     }
 
@@ -154,6 +161,7 @@ class SyncController: ObservableObject {
     func startScreenSync() {
         activeAura = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
+        Task { await syncActor.setSource(activeSource) }
         UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: "lastMode")
         if connectionStatus == .disconnected {
             startSession()
@@ -174,13 +182,16 @@ class SyncController: ObservableObject {
     /// Switching channels while identifying just swaps the source — no reconnect.
     func identify(channel: UInt8) {
         pulsedChannel = channel
+        Task { await syncActor.setPulsedChannel(channel) }
         switch connectionStatus {
         case .disconnected:
             isIdentifySession = true
             activeSource = IdentifySource(channel: channel)
+            Task { await syncActor.setSource(activeSource) }
             startSession()
         case .streaming where isIdentifySession:
             activeSource = IdentifySource(channel: channel)
+            Task { await syncActor.setSource(activeSource) }
         default:
             break  // real session active — pulsedChannel override in streaming loop handles it
         }
@@ -189,6 +200,7 @@ class SyncController: ObservableObject {
     /// Stop channel identification. If a temporary identify session was started, tears it down.
     func stopIdentify() {
         pulsedChannel = nil
+        Task { await syncActor.setPulsedChannel(nil) }
         guard isIdentifySession else { return }
         isIdentifySession = false
         stop()
@@ -197,8 +209,7 @@ class SyncController: ObservableObject {
     /// Stop the entertainment session.
     func stop() {
         isIdentifySession = false
-        streamingTask?.cancel()
-        streamingTask = nil
+        Task { await syncActor.stopStreaming() }
         session?.stop()
         activeSource = nil
         activeAura = nil
@@ -264,19 +275,16 @@ class SyncController: ObservableObject {
                 self?.handleSessionState(state)
             }
 
-        Task { [weak self] in
-            guard let self else { return }
-            await self.syncActor.setSession(newSession)
-        }
-
         newSession.start()
     }
 
     private func handleSessionState(_ state: EntertainmentSession.State) {
         switch state {
         case .idle:
-            streamingTask?.cancel()
-            streamingTask = nil
+            Task {
+                await syncActor.stopStreaming()
+                await syncActor.setSender(nil)
+            }
             if let errorMessage = session?.lastError {
                 connectionStatus = .error(errorMessage)
             } else {
@@ -286,42 +294,19 @@ class SyncController: ObservableObject {
             activeAura = nil
             session = nil
             sessionStateCancellable = nil
-            Task { [weak self] in
-                guard let self else { return }
-                await self.syncActor.clearSession()
-            }
 
         case .activating, .connecting, .reconnecting:
             connectionStatus = .connecting
 
         case .streaming:
             connectionStatus = .streaming
-            let capturedChannelCount = channelCount
+            guard let sender = session?.sender else { return }
             let startTime = Date.timeIntervalSinceReferenceDate
-            streamingTask?.cancel()
-            streamingTask = Task { @MainActor [weak self] in
-                guard let self else { return }
-                var tick: UInt8 = 0
-                while !Task.isCancelled && self.connectionStatus == .streaming {
-                    let elapsed = Date.timeIntervalSinceReferenceDate - startTime
-                    if let source = self.activeSource {
-                        var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed * self.speedMultiplier)
-                        if let ch = self.pulsedChannel,
-                           let idx = colors.firstIndex(where: { $0.channel == ch }) {
-                            let pulse = Float(0.5 + 0.5 * sin(elapsed * .pi))
-                            colors[idx] = (channel: ch, r: pulse, g: pulse, b: pulse)
-                        }
-                        let scale = self.brightness
-                        colors = colors.map { (channel: $0.channel, r: $0.r * scale, g: $0.g * scale, b: $0.b * scale) }
-                        self.session?.sendColors(colors)
-                        tick &+= 1
-                        if tick % 4 == 0 {
-                            self.previewColors = colors
-                        }
-                    }
-                    try? await Task.sleep(for: .milliseconds(16))
+            Task {
+                await syncActor.setSender(sender)
+                await syncActor.startStreaming(channelCount: channelCount, startTime: startTime) { [weak self] colors in
+                    Task { @MainActor [weak self] in self?.previewColors = colors }
                 }
-                self.previewColors = []
             }
 
         case .deactivating:
@@ -351,7 +336,7 @@ extension SyncController {
 
 /// Pulses a single channel white at 2 Hz; all other channels black.
 /// Used by identify(channel:) to let users match channel numbers to physical lights.
-private final class IdentifySource: LightSource {
+private final class IdentifySource: LightSource, @unchecked Sendable {
     let channel: UInt8
     init(channel: UInt8) { self.channel = channel }
 

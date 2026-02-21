@@ -9,7 +9,7 @@ import CoreVideo
 /// SCKit delivers frames on a background serial queue. The delegate processes each frame
 /// immediately — weighted edge average + EMA smoothing — then stores the result under
 /// `lock`. `nextColors()` reads synchronously: no `await` in the hot path.
-final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStreamDelegate {
+final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
 
     // MARK: - Private state
 

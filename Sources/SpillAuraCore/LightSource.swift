@@ -1,7 +1,7 @@
 import Foundation
 
 /// A source of per-channel light colors for a given point in time.
-public protocol LightSource {
+public protocol LightSource: Sendable {
     /// Generate one color per channel.
     ///
     /// - Parameters:
