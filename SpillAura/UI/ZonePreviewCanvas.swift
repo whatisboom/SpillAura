@@ -13,23 +13,37 @@ struct ZonePreviewCanvas: View {
 
                 ForEach(zones.indices, id: \.self) { i in
                     let zone = zones[i]
+                    let channelColor = ChannelColor.color(for: i, of: zones.count)
                     let previewColor = liveColors.first(where: { $0.channel == zone.channelID })
                     let fill: Color = previewColor.map {
                         Color(red: Double($0.r), green: Double($0.g), blue: Double($0.b))
                     } ?? Color.secondary.opacity(0.25)
-                    let label = previewColor != nil ? "Ch \(zone.channelID)" : zone.region.label
 
                     ZStack {
                         zone.region.previewPath(in: CGRect(origin: .zero, size: geo.size))
                             .fill(fill)
-                        Text(label)
-                            .font(.caption2)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black, radius: 1)
-                            .position(
-                                x: zone.region.centroid.x * geo.size.width,
-                                y: zone.region.centroid.y * geo.size.height
-                            )
+
+                        Group {
+                            if previewColor != nil {
+                                // Streaming: colored dot + region name
+                                HStack(spacing: 3) {
+                                    Circle()
+                                        .fill(channelColor.swiftUIColor)
+                                        .frame(width: 6, height: 6)
+                                    Text(zone.region.label)
+                                }
+                            } else {
+                                // Static: color name
+                                Text(channelColor.name)
+                            }
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .shadow(color: .black, radius: 1)
+                        .position(
+                            x: zone.region.centroid.x * geo.size.width,
+                            y: zone.region.centroid.y * geo.size.height
+                        )
                     }
                 }
             }

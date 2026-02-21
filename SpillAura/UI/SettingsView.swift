@@ -163,7 +163,10 @@ private struct ZoneReconfigureSheet: View {
                 config: Binding(
                     get: { syncController.zoneConfig },
                     set: { syncController.zoneConfig = $0; syncController.saveZoneConfig() }
-                )
+                ),
+                onIdentify: { channel, color in
+                    syncController.identify(channel: channel, color: color)
+                }
             )
 
             HStack {
@@ -174,6 +177,7 @@ private struct ZoneReconfigureSheet: View {
         }
         .padding(24)
         .frame(minWidth: 400)
+        .onDisappear { syncController.stopIdentify() }
     }
 }
 
