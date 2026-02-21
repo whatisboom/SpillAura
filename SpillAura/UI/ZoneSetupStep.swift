@@ -5,6 +5,7 @@ import SwiftUI
 struct ZoneSetupStep: View {
     let channelCount: Int
     @Binding var config: ZoneConfig
+    var onIdentify: ((UInt8, ChannelColor) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -26,16 +27,37 @@ struct ZoneSetupStep: View {
                 .buttonStyle(.bordered)
             }
 
-            // Per-channel pickers
+            // Per-channel pickers with colored labels
             ForEach(config.zones.indices, id: \.self) { i in
-                LabeledContent("Channel \(config.zones[i].channelID)") {
-                    Picker("", selection: $config.zones[i].region) {
-                        ForEach(ScreenRegion.allCases) { region in
-                            Text(region.label).tag(region)
+                let channelColor = ChannelColor.color(for: i, of: channelCount)
+                LabeledContent {
+                    HStack(spacing: 8) {
+                        Picker("", selection: $config.zones[i].region) {
+                            ForEach(ScreenRegion.allCases) { region in
+                                Text(region.label).tag(region)
+                            }
+                        }
+                        .frame(maxWidth: 160)
+                        .help("Which screen region this channel samples.")
+
+                        if let onIdentify {
+                            Button {
+                                onIdentify(config.zones[i].channelID, channelColor)
+                            } label: {
+                                Image(systemName: "lightbulb.fill")
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(channelColor.swiftUIColor)
+                            .help("Light this channel in \(channelColor.name) to identify it.")
                         }
                     }
-                    .frame(maxWidth: 160)
-                    .help("Which screen region this channel samples.")
+                } label: {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(channelColor.swiftUIColor)
+                            .frame(width: 10, height: 10)
+                        Text(channelColor.name)
+                    }
                 }
             }
 
