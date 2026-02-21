@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-15
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build archive
+        run: |
+          xcodebuild archive \
+            -project SpillAura.xcodeproj \
+            -scheme SpillAura \
+            -configuration Release \
+            -archivePath build/SpillAura.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create DMG
+        run: |
+          TAG="${{ github.ref_name }}"
+          APP_PATH="build/SpillAura.xcarchive/Products/Applications/SpillAura.app"
+          DMG_NAME="SpillAura-${TAG}.dmg"
+
+          mkdir -p dmg_staging
+          cp -r "$APP_PATH" dmg_staging/SpillAura.app
+          ln -s /Applications dmg_staging/Applications
+
+          hdiutil create \
+            -volname "SpillAura" \
+            -srcfolder dmg_staging \
+            -ov \
+            -format UDZO \
+            "$DMG_NAME"
+
+          echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.DMG_NAME }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
