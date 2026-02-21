@@ -19,11 +19,6 @@ struct ScreenSyncView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: syncController.responsiveness) { _, _ in
-                    if syncController.connectionStatus == .streaming {
-                        syncController.startScreenSync()
-                    }
-                }
             }
 
             // Live preview canvas

@@ -13,7 +13,8 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
     // MARK: - Private state
 
     private let config: ZoneConfig
-    private let responsiveness: SyncResponsiveness
+    /// Protected by `lock` so updateResponsiveness can swap it from any actor.
+    private var _emaFactor: Float
 
     private var stream: SCStream?
     private let frameQueue = DispatchQueue(label: "com.spillaura.screencapture", qos: .userInteractive)
@@ -27,9 +28,12 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 
     // MARK: - Init / deinit
 
+    private var _initialFrameRate: Int
+
     init(config: ZoneConfig, responsiveness: SyncResponsiveness) {
         self.config = config
-        self.responsiveness = responsiveness
+        self._emaFactor = Float(responsiveness.emaFactor)
+        self._initialFrameRate = responsiveness.frameRate
         self.smoothed = config.zones.map { (channel: $0.channelID, r: 0, g: 0, b: 0) }
         super.init()
         Task { await startCapture() }
@@ -75,7 +79,7 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
             let streamConfig = SCStreamConfiguration()
             streamConfig.width = 160
             streamConfig.height = 90
-            streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(responsiveness.frameRate))
+            streamConfig.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(_initialFrameRate))
             streamConfig.queueDepth = 3
             streamConfig.pixelFormat = kCVPixelFormatType_32BGRA
 
@@ -127,7 +131,9 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
         guard let base = CVPixelBufferGetBaseAddress(pixelBuffer) else { return [] }
         let buf = base.assumingMemoryBound(to: UInt8.self)
 
-        let factor = Float(responsiveness.emaFactor)
+        lock.lock()
+        let factor = _emaFactor
+        lock.unlock()
         var result: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
         for (i, zone) in config.zones.enumerated() {
@@ -177,5 +183,19 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
         }
 
         return result
+    }
+
+    // MARK: - Live responsiveness update
+
+    /// Update EMA factor and stream frame rate in-place — no stream teardown.
+    func updateResponsiveness(_ r: SyncResponsiveness) {
+        lock.lock()
+        _emaFactor = Float(r.emaFactor)
+        lock.unlock()
+
+        guard let s = stream else { return }
+        let cfg = SCStreamConfiguration()
+        cfg.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(r.frameRate))
+        Task { try? await s.updateConfiguration(cfg) }
     }
 }

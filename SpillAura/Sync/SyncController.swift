@@ -28,7 +28,10 @@ class SyncController: ObservableObject {
         let raw = UserDefaults.standard.string(forKey: "syncResponsiveness") ?? ""
         return SyncResponsiveness(rawValue: raw) ?? .balanced
     }() {
-        didSet { UserDefaults.standard.set(responsiveness.rawValue, forKey: "syncResponsiveness") }
+        didSet {
+            UserDefaults.standard.set(responsiveness.rawValue, forKey: "syncResponsiveness")
+            (activeSource as? ScreenCaptureSource)?.updateResponsiveness(responsiveness)
+        }
     }
 
     @Published var brightness: Float = {
