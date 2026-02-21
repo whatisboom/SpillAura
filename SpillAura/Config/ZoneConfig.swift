@@ -155,6 +155,62 @@ struct ZoneConfig: Codable {
     }
 }
 
+struct ChannelColor {
+    let name: String
+    let r: Float
+    let g: Float
+    let b: Float
+
+    var swiftUIColor: Color { Color(red: Double(r), green: Double(g), blue: Double(b)) }
+
+    /// Returns a visually distinct color for channel `index` out of `count` total channels.
+    /// Hues are evenly spaced around the color wheel (saturation 1, brightness 1).
+    static func color(for index: Int, of count: Int) -> ChannelColor {
+        let hue = Double(index) / Double(max(count, 1))  // 0.0 ..< 1.0
+
+        // HSB → RGB (6-sector piecewise linear)
+        let h6 = hue * 6.0
+        let sector = Int(h6) % 6
+        let f = Float(h6 - Double(Int(h6)))
+        let q: Float = 1.0 - f
+        let r, g, b: Float
+        switch sector {
+        case 0: r = 1; g = f;   b = 0
+        case 1: r = q; g = 1;   b = 0
+        case 2: r = 0; g = 1;   b = f
+        case 3: r = 0; g = q;   b = 1
+        case 4: r = f; g = 0;   b = 1
+        default: r = 1; g = 0;  b = q
+        }
+
+        // Map hue to one of 12 named sectors
+        let sectorNames = [
+            "Red", "Orange", "Yellow", "Lime", "Green", "Mint",
+            "Cyan", "Sky", "Blue", "Purple", "Pink", "Rose"
+        ]
+        let sectorIndex = Int(round(hue * 12)) % 12
+        let baseName = sectorNames[sectorIndex]
+
+        // For count > 12, disambiguate repeated names with ordinals
+        var name = baseName
+        if count > 12 {
+            var usedCounts: [String: Int] = [:]
+            for prev in 0..<index {
+                let prevHue = Double(prev) / Double(count)
+                let prevSector = Int(round(prevHue * 12)) % 12
+                let prevName = sectorNames[prevSector]
+                usedCounts[prevName, default: 0] += 1
+            }
+            let timesUsed = usedCounts[baseName, default: 0]
+            if timesUsed > 0 {
+                name = "\(baseName) \(timesUsed + 1)"
+            }
+        }
+
+        return ChannelColor(name: name, r: r, g: g, b: b)
+    }
+}
+
 enum ZoneLayoutPreset {
     case twoBar, threeBar, fourBar
 
