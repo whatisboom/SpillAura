@@ -60,13 +60,29 @@ class SyncController: ObservableObject {
     // MARK: - Init / deinit
 
     init() {
-        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+        let nc = NSWorkspace.shared.notificationCenter
+        systemObservers.append(nc.addObserver(
             forName: NSWorkspace.willSleepNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.stop() }
-        }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                wasStreamingBeforeSleep = connectionStatus == .streaming
+                stop()
+            }
+        })
+        systemObservers.append(nc.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, wasStreamingBeforeSleep else { return }
+                wasStreamingBeforeSleep = false
+                resumeLastSession()
+            }
+        })
         Task { @MainActor [weak self] in
             // Brief yield so SwiftUI finishes scene setup before we touch Keychain/session.
             try? await Task.sleep(for: .milliseconds(200))
@@ -75,14 +91,15 @@ class SyncController: ObservableObject {
     }
 
     deinit {
-        if let o = sleepObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(o)
+        systemObservers.forEach {
+            NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
     }
 
     // MARK: - Private
 
-    private var sleepObserver: (any NSObjectProtocol)?
+    private var systemObservers: [any NSObjectProtocol] = []
+    private var wasStreamingBeforeSleep = false
 
     private let syncActor = SyncActor()
     private var session: EntertainmentSession?
@@ -182,19 +199,27 @@ class SyncController: ObservableObject {
         guard !hasAutoStarted else { return }
         hasAutoStarted = true
         guard UserDefaults.standard.bool(forKey: "autoStartOnLaunch") else { return }
+        guard resumeLastSession() else {
+            // First launch — no saved session. Start with Disco.
+            startAura(BuiltinAuras.disco)
+            return
+        }
+    }
 
+    /// Resumes the last mode from UserDefaults. Returns true if a session was started.
+    @discardableResult
+    private func resumeLastSession() -> Bool {
         let mode = UserDefaults.standard.string(forKey: "lastMode").flatMap(SyncMode.init)
-
         if mode == .screen {
             startScreenSync()
+            return true
         } else if mode == .aura,
                   let data = UserDefaults.standard.data(forKey: "lastAura"),
                   let aura = try? JSONDecoder().decode(Aura.self, from: data) {
             startAura(aura)
-        } else {
-            // First launch — no saved session. Start with Disco.
-            startAura(BuiltinAuras.disco)
+            return true
         }
+        return false
     }
 
     private func startSession() {
