@@ -182,7 +182,7 @@ class SyncController: ObservableObject {
     /// Switching channels while identifying just swaps the source — no reconnect.
     func identify(channel: UInt8, color: ChannelColor) {
         pulsedChannel = channel
-        Task { await syncActor.setPulsedIdentify((channel, color.r, color.g, color.b)) }
+        Task { await syncActor.setPulsedIdentify([(channel, color.r, color.g, color.b)]) }
         switch connectionStatus {
         case .disconnected:
             isIdentifySession = true
@@ -194,6 +194,25 @@ class SyncController: ObservableObject {
             Task { await syncActor.setSource(activeSource) }
         default:
             break  // real session active — pulsedChannel override in streaming loop handles it
+        }
+    }
+
+    /// Light ALL channels in their distinct ChannelColor simultaneously so the user can match
+    /// every physical light to its on-screen label at once.
+    /// If already streaming, overrides via pulsedIdentify. If disconnected, starts a temp session.
+    func identifyAll() {
+        let count = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        let entries: [ColorEntry] = (0..<count).map { i in
+            let c = ChannelColor.color(for: i, of: count)
+            return (channel: UInt8(i), r: c.r, g: c.g, b: c.b)
+        }
+        pulsedChannel = nil
+        Task { await syncActor.setPulsedIdentify(entries) }
+        if connectionStatus == .disconnected {
+            isIdentifySession = true
+            activeSource = IdentifyAllSource(channelCount: count)
+            Task { await syncActor.setSource(activeSource) }
+            startSession()
         }
     }
 
@@ -352,4 +371,22 @@ private final class IdentifySource: LightSource, @unchecked Sendable {
                 : (channel: ch, r: 0, g: 0, b: 0)
         }
     }
+}
+
+// MARK: - IdentifyAllSource
+
+/// Shows every channel in its distinct ChannelColor simultaneously.
+/// Used by identifyAll() when no active streaming session exists.
+private final class IdentifyAllSource: LightSource, @unchecked Sendable {
+    let channelColors: [(channel: UInt8, r: Float, g: Float, b: Float)]
+
+    init(channelCount: Int) {
+        channelColors = (0..<channelCount).map { i in
+            let c = ChannelColor.color(for: i, of: channelCount)
+            return (channel: UInt8(i), r: c.r, g: c.g, b: c.b)
+        }
+    }
+
+    func nextColors(channelCount: Int, at timestamp: TimeInterval)
+        -> [(channel: UInt8, r: Float, g: Float, b: Float)] { channelColors }
 }

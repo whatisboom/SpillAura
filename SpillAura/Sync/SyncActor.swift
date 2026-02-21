@@ -9,14 +9,14 @@ actor SyncActor {
     private var sender: HueSender?
     private var brightness: Float = 1.0
     private var speedMultiplier: Double = 1.0
-    private var pulsedIdentify: (channel: UInt8, r: Float, g: Float, b: Float)?
+    private var pulsedIdentify: [ColorEntry]?
     private var streamingTask: Task<Void, Never>?
 
     func setSource(_ source: (any LightSource)?)  { self.source = source }
     func setSender(_ sender: HueSender?)          { self.sender = sender }
     func setBrightness(_ v: Float)                { brightness = v }
     func setSpeedMultiplier(_ v: Double)          { speedMultiplier = v }
-    func setPulsedIdentify(_ info: (channel: UInt8, r: Float, g: Float, b: Float)?) { pulsedIdentify = info }
+    func setPulsedIdentify(_ entries: [ColorEntry]?) { pulsedIdentify = entries }
 
     func startStreaming(
         channelCount: Int,
@@ -31,9 +31,12 @@ actor SyncActor {
                 if let src = source, let sndr = sender {
                     var colors = src.nextColors(channelCount: channelCount,
                                                 at: elapsed * speedMultiplier)
-                    if let id = pulsedIdentify,
-                       let idx = colors.firstIndex(where: { $0.channel == id.channel }) {
-                        colors[idx] = (channel: id.channel, r: id.r, g: id.g, b: id.b)
+                    if let ids = pulsedIdentify {
+                        for id in ids {
+                            if let idx = colors.firstIndex(where: { $0.channel == id.channel }) {
+                                colors[idx] = id
+                            }
+                        }
                     }
                     let scale = brightness
                     colors = colors.map { ($0.channel, $0.r * scale, $0.g * scale, $0.b * scale) }
