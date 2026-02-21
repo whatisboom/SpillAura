@@ -64,6 +64,11 @@ class SyncController: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in self?.stop() }
         }
+        Task { @MainActor [weak self] in
+            // Brief yield so SwiftUI finishes scene setup before we touch Keychain/session.
+            try? await Task.sleep(for: .milliseconds(200))
+            self?.autoStartIfNeeded()
+        }
     }
 
     deinit {
@@ -83,6 +88,8 @@ class SyncController: ObservableObject {
     /// The source the streaming loop reads each tick. Swap this to change vibes mid-stream.
     private var activeSource: LightSource? = nil
     private var channelCount: Int = 1
+
+    private var hasAutoStarted = false
 
     /// True when the current session was started solely for channel identification.
     /// Lets stopIdentify() know it owns the session and should tear it down.
@@ -167,6 +174,25 @@ class SyncController: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func autoStartIfNeeded() {
+        guard !hasAutoStarted else { return }
+        hasAutoStarted = true
+        guard UserDefaults.standard.bool(forKey: "autoStartOnLaunch") else { return }
+
+        let mode = UserDefaults.standard.string(forKey: "lastMode")
+
+        if mode == "screen" {
+            startScreenSync()
+        } else if mode == "vibe",
+                  let data = UserDefaults.standard.data(forKey: "lastVibe"),
+                  let vibe = try? JSONDecoder().decode(Vibe.self, from: data) {
+            startVibe(vibe)
+        } else {
+            // First launch — no saved session. Start with Disco.
+            startVibe(BuiltinVibes.disco)
+        }
+    }
 
     private func startSession() {
         guard let credentials = HueBridgeAuth().loadFromKeychain() else {
