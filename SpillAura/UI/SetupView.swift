@@ -10,6 +10,11 @@ struct SetupView: View {
     @State private var credentials: BridgeCredentials? = nil
     @State private var errorMessage: String? = nil
 
+    @AppStorage("entertainmentGroupID")    private var storedGroupID: String = ""
+    @AppStorage("entertainmentChannelCount") private var storedChannelCount: Int = 1
+    @State private var zoneConfig: ZoneConfig = ZoneConfig.defaultConfig(channelCount: 1)
+    @State private var setupComplete: Bool = false
+
     enum PairingState {
         case idle, waitingForButton, pairing, success, failed
     }
@@ -128,7 +133,29 @@ struct SetupView: View {
                         EntertainmentGroupPicker(credentials: creds, auth: auth)
                             .padding(4)
                     }
+                }
 
+                // Step 4: Configure zones (appears after group is selected)
+                if pairingState == .success && !storedGroupID.isEmpty {
+                    GroupBox("Configure Zones") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Match each channel to where its light bar sits relative to your monitor.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+
+                            ZoneSetupStep(channelCount: storedChannelCount, config: $zoneConfig)
+
+                            Button("Done") {
+                                zoneConfig.save()
+                                setupComplete = true
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .padding(4)
+                    }
+                }
+
+                if setupComplete {
                     Label("Setup complete — use the menu bar icon to control your lights.", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.callout)
@@ -145,6 +172,12 @@ struct SetupView: View {
                 credentials = creds
                 selectedBridgeIP = creds.bridgeIP
                 pairingState = .success
+            }
+        }
+        .onChange(of: storedChannelCount) { _, newCount in
+            if newCount > 0 {
+                zoneConfig = ZoneConfig.defaultConfig(channelCount: newCount)
+                setupComplete = false
             }
         }
         .onDisappear {
