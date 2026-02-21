@@ -119,12 +119,10 @@ struct MainWindow: View {
                 Slider(value: speedSliderBinding, in: 1...30)
                     .frame(width: 100)
                     .onChange(of: vibeSpeed) { _, newSpeed in
-                        guard var vibe = selectedVibe else { return }
+                        guard syncController.connectionStatus == .streaming,
+                              var vibe = syncController.activeVibe else { return }
                         vibe.speed = newSpeed
-                        selectedVibe = vibe
-                        if syncController.connectionStatus == .streaming {
-                            syncController.startVibe(vibe)
-                        }
+                        syncController.startVibe(vibe)
                     }
                 Image(systemName: "hare").foregroundStyle(.secondary)
 
@@ -158,8 +156,10 @@ struct MainWindow: View {
                 Button("Start") {
                     switch mode {
                     case .vibe:
-                        let vibe = selectedVibe ?? vibeLibrary.vibes.first
-                        if let v = vibe { syncController.startVibe(v) }
+                        if var v = selectedVibe ?? vibeLibrary.vibes.first {
+                            v.speed = vibeSpeed
+                            syncController.startVibe(v)
+                        }
                     case .screen:
                         syncController.startScreenSync()
                     }
