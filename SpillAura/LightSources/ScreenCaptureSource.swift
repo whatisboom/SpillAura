@@ -150,8 +150,8 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
                     let nx = Double(x) / Double(pw)
                     let ny = Double(y) / Double(ph)
                     guard zone.region.contains(nx: nx, ny: ny) else { continue }
-                    let w = zone.region.isEdge(nx: nx, ny: ny, depth: config.depth)
-                        ? config.edgeWeight : 1.0
+                    let w = zone.region.isEdge(nx: nx, ny: ny)
+                        ? 1.0 + config.edgeBias * 4.0 : 1.0
                     let off = y * bpr + x * 4  // BGRA
                     let b = Double(buf[off])     / 255.0
                     let g = Double(buf[off + 1]) / 255.0

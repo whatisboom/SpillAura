@@ -128,43 +128,22 @@ private struct ScreenSyncSettingsSection: View {
 
                 Divider()
 
-                // Zone Depth slider
-                LabeledContent("Zone Depth") {
-                    HStack {
+                // Edge Bias slider
+                LabeledContent("Edge Bias") {
+                    HStack(spacing: 6) {
+                        Text("Uniform").font(.caption).foregroundStyle(.secondary)
                         Slider(
                             value: Binding(
-                                get: { syncController.zoneConfig.depth },
+                                get: { syncController.zoneConfig.edgeBias },
                                 set: { newVal in
-                                    syncController.zoneConfig.depth = newVal
+                                    syncController.zoneConfig.edgeBias = newVal
                                     syncController.saveZoneConfig()
                                 }
                             ),
-                            in: 0.05...0.50
+                            in: 0...1
                         )
-                        .frame(maxWidth: 160)
-                        Text("\(Int(syncController.zoneConfig.depth * 100))%")
-                            .frame(width: 36, alignment: .trailing)
-                            .monospacedDigit()
-                    }
-                }
-
-                // Edge Weight slider
-                LabeledContent("Edge Weight") {
-                    HStack {
-                        Slider(
-                            value: Binding(
-                                get: { syncController.zoneConfig.edgeWeight },
-                                set: { newVal in
-                                    syncController.zoneConfig.edgeWeight = newVal
-                                    syncController.saveZoneConfig()
-                                }
-                            ),
-                            in: 1.0...5.0
-                        )
-                        .frame(maxWidth: 160)
-                        Text(String(format: "%.1f×", syncController.zoneConfig.edgeWeight))
-                            .frame(width: 36, alignment: .trailing)
-                            .monospacedDigit()
+                        .frame(maxWidth: 120)
+                        Text("Edge").font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }

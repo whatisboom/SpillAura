@@ -42,18 +42,16 @@ enum ScreenRegion: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    /// Whether this pixel is in the "edge" band for edge-weighting purposes.
-    func isEdge(nx: Double, ny: Double, depth: Double) -> Bool {
+    /// Whether this pixel is in the edge band closest to the physical light position.
+    /// The band width is fixed at 25% of the relevant screen dimension.
+    func isEdge(nx: Double, ny: Double) -> Bool {
+        let d = 0.25
         switch self {
-        case .topTriangle:    return ny < depth
-        case .bottomTriangle: return ny > 1 - depth
-        case .leftTriangle:   return nx < depth
-        case .rightTriangle:  return nx > 1 - depth
-        case .center:
-            // Outer 20% of the center rect (relative to the center rect bounds)
-            let inner = 0.05  // 20% of the 0.25-wide rect = 0.05
-            return nx < 0.25 + inner || nx > 0.75 - inner
-                || ny < 0.25 + inner || ny > 0.75 - inner
+        case .topTriangle:    return ny < d
+        case .bottomTriangle: return ny > 1 - d
+        case .leftTriangle:   return nx < d
+        case .rightTriangle:  return nx > 1 - d
+        case .center:         return nx < 0.3 || nx > 0.7 || ny < 0.3 || ny > 0.7
         case .fullScreen:     return false
         }
     }
@@ -117,28 +115,25 @@ struct Zone: Codable {
 struct ZoneConfig: Codable {
     var displayID: UInt32   // 0 = CGMainDisplayID()
     var zones: [Zone]
-    /// Fraction of screen used for edge-weighting band in triangle regions. Default 0.20.
-    var depth: Double
-    /// Weight multiplier for edge pixels within a zone (edge vs center). Default 3.0.
-    var edgeWeight: Double
+    /// 0 = uniform sampling across the triangle, 1 = pixels at the screen edge dominate.
+    /// Maps to a weight multiplier of 1× (bias=0) to 5× (bias=1). Default 0.5 → 3×.
+    var edgeBias: Double
 
     private enum CodingKeys: String, CodingKey {
-        case displayID, zones, depth, edgeWeight
+        case displayID, zones, edgeBias
     }
 
-    init(displayID: UInt32, zones: [Zone], depth: Double = 0.20, edgeWeight: Double = 3.0) {
+    init(displayID: UInt32, zones: [Zone], edgeBias: Double = 0.5) {
         self.displayID = displayID
         self.zones = zones
-        self.depth = depth
-        self.edgeWeight = edgeWeight
+        self.edgeBias = edgeBias
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        displayID  = try c.decode(UInt32.self, forKey: .displayID)
-        zones      = try c.decode([Zone].self, forKey: .zones)
-        depth      = try c.decodeIfPresent(Double.self, forKey: .depth)      ?? 0.20
-        edgeWeight = try c.decodeIfPresent(Double.self, forKey: .edgeWeight) ?? 3.0
+        displayID = try c.decode(UInt32.self, forKey: .displayID)
+        zones     = try c.decode([Zone].self, forKey: .zones)
+        edgeBias  = try c.decodeIfPresent(Double.self, forKey: .edgeBias) ?? 0.5
     }
 
     /// Default: all channels sample Full Screen on the main display.
