@@ -7,8 +7,9 @@ struct MainWindow: View {
 
     @State private var mode: Mode = .vibe
     @State private var selectedVibe: Vibe? = nil
-    /// Higher = faster. Converts to vibe.speed via 30 / speedFactor.
-    @State private var speedFactor: Double = 3.75
+    /// Slider display position 4...20. vibe.speed = 24 - vibeSpeedDisplay.
+    /// Left (4) → vibe.speed 20 (slow/tortoise). Right (20) → vibe.speed 4 (fast/hare).
+    @State private var vibeSpeedDisplay: Double = 16.0
 
     private enum Mode: String, CaseIterable {
         case vibe = "Vibe"
@@ -109,12 +110,12 @@ struct MainWindow: View {
         HStack(spacing: 10) {
             if mode == .vibe {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
-                Slider(value: $speedFactor, in: 1...10)
+                Slider(value: $vibeSpeedDisplay, in: 4...20)
                     .frame(width: 100)
-                    .onChange(of: speedFactor) { _, newFactor in
+                    .onChange(of: vibeSpeedDisplay) { _, newDisplay in
                         guard syncController.connectionStatus == .streaming,
                               var vibe = syncController.activeVibe else { return }
-                        vibe.speed = 30.0 / newFactor
+                        vibe.speed = 24.0 - newDisplay
                         syncController.startVibe(vibe)
                     }
                 Image(systemName: "hare").foregroundStyle(.secondary)
@@ -127,7 +128,8 @@ struct MainWindow: View {
             Image(systemName: "sun.max").foregroundStyle(.secondary)
         }
         .onChange(of: selectedVibe?.id) { _, _ in
-            speedFactor = 30.0 / (selectedVibe?.speed ?? 8.0)
+            let speed = selectedVibe?.speed ?? 8.0
+            vibeSpeedDisplay = min(20, max(4, 24.0 - speed))
         }
     }
 
@@ -150,7 +152,7 @@ struct MainWindow: View {
                     switch mode {
                     case .vibe:
                         if var v = selectedVibe ?? vibeLibrary.vibes.first {
-                            v.speed = 30.0 / speedFactor
+                            v.speed = 24.0 - vibeSpeedDisplay
                             syncController.startVibe(v)
                         }
                     case .screen:
