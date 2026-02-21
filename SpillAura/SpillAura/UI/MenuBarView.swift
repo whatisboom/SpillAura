@@ -53,7 +53,7 @@ struct MenuBarView: View {
 
             Divider()
 
-            Button("Open Settings") { openWindow(id: "main") }
+            Button("Open") { openWindow(id: "main") }
         }
         .padding()
         .frame(width: 260)

@@ -22,5 +22,10 @@ struct SpillAuraApp: App {
                 .environmentObject(syncController)
                 .environmentObject(vibeLibrary)
         }
+
+        Window("Settings", id: "settings") {
+            SettingsView()
+        }
+        .windowResizability(.contentSize)
     }
 }
