@@ -104,28 +104,36 @@ struct MainWindow: View {
 
     // MARK: - Control Rows (speed + brightness)
 
+    /// Inverted binding: slider left = slow (high duration), right = fast (low duration).
+    private var speedSliderBinding: Binding<Double> {
+        Binding(
+            get: { 31.0 - vibeSpeed },
+            set: { vibeSpeed = 31.0 - $0 }
+        )
+    }
+
     private var controlRows: some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 10) {
             if mode == .vibe {
-                HStack(spacing: 8) {
-                    Image(systemName: "hare").foregroundStyle(.secondary)
-                    Slider(value: $vibeSpeed, in: 1...30)
-                    Image(systemName: "tortoise").foregroundStyle(.secondary)
-                }
-                .onChange(of: vibeSpeed) { _, newSpeed in
-                    guard var vibe = selectedVibe else { return }
-                    vibe.speed = newSpeed
-                    selectedVibe = vibe
-                    if syncController.connectionStatus == .streaming {
-                        syncController.startVibe(vibe)
+                Image(systemName: "tortoise").foregroundStyle(.secondary)
+                Slider(value: speedSliderBinding, in: 1...30)
+                    .frame(width: 100)
+                    .onChange(of: vibeSpeed) { _, newSpeed in
+                        guard var vibe = selectedVibe else { return }
+                        vibe.speed = newSpeed
+                        selectedVibe = vibe
+                        if syncController.connectionStatus == .streaming {
+                            syncController.startVibe(vibe)
+                        }
                     }
-                }
+                Image(systemName: "hare").foregroundStyle(.secondary)
+
+                Divider().frame(height: 16)
             }
-            HStack(spacing: 8) {
-                Image(systemName: "sun.min").foregroundStyle(.secondary)
-                Slider(value: $syncController.brightness, in: 0...1)
-                Image(systemName: "sun.max").foregroundStyle(.secondary)
-            }
+
+            Image(systemName: "sun.min").foregroundStyle(.secondary)
+            Slider(value: $syncController.brightness, in: 0...1)
+            Image(systemName: "sun.max").foregroundStyle(.secondary)
         }
         .onChange(of: selectedVibe?.id) { _, _ in
             vibeSpeed = selectedVibe?.speed ?? 8.0
