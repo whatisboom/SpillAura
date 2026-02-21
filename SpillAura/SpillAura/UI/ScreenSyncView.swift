@@ -10,11 +10,9 @@ struct ScreenSyncView: View {
     /// Populated on appear from SCShareableContent. Only shown if > 1 display.
     @State private var availableDisplays: [(id: UInt32, name: String)] = []
 
-    /// Which channel's picker is currently open.
+    /// Which channel's row the cursor is over. Drives preview pulse + light pulse.
     @State private var highlightedChannel: UInt8?
-    /// Drives the pulsing opacity animation in the preview canvas.
-    @State private var pulseOn: Bool = false
-    /// Auto-clears the highlight if the user dismisses the picker without selecting.
+    /// Auto-clears the highlight if the user moves away without selecting.
     @State private var pulseTask: Task<Void, Never>?
 
     var body: some View {
@@ -59,9 +57,12 @@ struct ScreenSyncView: View {
                             }
                         }
                         .frame(maxWidth: 160)
-                        .simultaneousGesture(TapGesture().onEnded {
+                    }
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if hovering {
                             startHighlight(channel: channelID)
-                        })
+                        }
                     }
                 }
             }
@@ -84,9 +85,7 @@ struct ScreenSyncView: View {
                                 blue:  Double(previewColor?.b ?? 0)
                               )
                             : Color.secondary.opacity(0.25)
-                        let label = isStreaming
-                            ? "Ch \(zone.channelID)"
-                            : zone.region.label
+                        let label = isStreaming ? "Ch \(zone.channelID)" : zone.region.label
                         let isHighlighted = zone.channelID == highlightedChannel
                         let w = rect.width  * geo.size.width
                         let h = rect.height * geo.size.height
@@ -94,9 +93,16 @@ struct ScreenSyncView: View {
                         ZStack {
                             Rectangle().fill(fill)
 
+                            // TimelineView drives the pulse from the clock — no animation
+                            // state management needed. Only active while highlighted.
                             if isHighlighted {
-                                Rectangle()
-                                    .fill(Color.white.opacity(pulseOn ? 0.5 : 0))
+                                TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
+                                    let phase = tl.date.timeIntervalSinceReferenceDate
+                                    Rectangle()
+                                        .fill(Color.white.opacity(
+                                            0.45 * (0.5 + 0.5 * sin(phase * .pi * 4))
+                                        ))
+                                }
                             }
 
                             Text(label)
@@ -129,13 +135,6 @@ struct ScreenSyncView: View {
         .padding()
         .frame(minWidth: 440, minHeight: 320)
         .task { await loadDisplays() }
-        .onChange(of: highlightedChannel) { _, newVal in
-            withAnimation(nil) { pulseOn = false }
-            guard newVal != nil else { return }
-            withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-                pulseOn = true
-            }
-        }
     }
 
     private func startHighlight(channel: UInt8) {
