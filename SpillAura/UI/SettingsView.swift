@@ -69,6 +69,8 @@ private struct ScreenSyncSettingsSection: View {
     @State private var availableDisplays: [(id: UInt32, name: String)] = []
     @State private var pulseTask: Task<Void, Never>?
 
+    private var channelCount: Int { syncController.zoneConfig.zones.count }
+
     var body: some View {
         GroupBox("Screen Sync") {
             VStack(alignment: .leading, spacing: 12) {
@@ -93,16 +95,22 @@ private struct ScreenSyncSettingsSection: View {
                     Divider()
                 }
 
-                // Layout presets
-                HStack(spacing: 8) {
-                    Button("2-Bar (L/R)")    { applyPreset(.twoBar) }
-                        .help("Assign left and right zones — for two Play bars positioned beside your monitor.")
-                    Button("3-Bar (T/L/R)")  { applyPreset(.threeBar) }
-                        .help("Assign top, left, and right zones — for three Play bars across the top and sides of your monitor.")
-                    Button("4-Bar Surround") { applyPreset(.fourBar) }
-                        .help("Assign top, right, bottom, and left zones — for a full surround light bar setup.")
+                // Layout presets — hidden for single-channel setups
+                if channelCount >= 2 {
+                    HStack(spacing: 8) {
+                        Button("Sides") { applyPreset(.twoBar) }
+                            .help("Assign left and right zones — for two Play bars positioned beside your monitor.")
+                        if channelCount >= 3 {
+                            Button("Top + Sides") { applyPreset(.threeBar) }
+                                .help("Assign top, left, and right zones — for three Play bars across the top and sides of your monitor.")
+                        }
+                        if channelCount >= 4 {
+                            Button("Surround") { applyPreset(.fourBar) }
+                                .help("Assign top, right, bottom, and left zones — for a full surround light bar setup.")
+                        }
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
 
                 // Zone pickers — one row per channel
                 ForEach(syncController.zoneConfig.zones.indices, id: \.self) { i in
@@ -207,9 +215,9 @@ private enum ZoneLayoutPreset {
     func regions(for count: Int) -> [ScreenRegion] {
         let all: [ScreenRegion]
         switch self {
-        case .twoBar:   all = [.leftTriangle, .rightTriangle]
-        case .threeBar: all = [.topTriangle, .leftTriangle, .rightTriangle]
-        case .fourBar:  all = [.topTriangle, .rightTriangle, .bottomTriangle, .leftTriangle]
+        case .twoBar:   all = [.left, .right]
+        case .threeBar: all = [.top, .left, .right]
+        case .fourBar:  all = [.top, .right, .bottom, .left]
         }
         return (0..<count).map { i in i < all.count ? all[i] : .fullScreen }
     }
