@@ -30,6 +30,11 @@ class SyncController: ObservableObject {
     /// Used by ScreenSyncView for the live zone preview.
     @Published private(set) var previewColors: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
+    @Published var zoneConfig: ZoneConfig = {
+        let cc = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        return ZoneConfig.load(channelCount: cc)
+    }()
+
     // MARK: - Private
 
     private let syncActor = SyncActor()
@@ -62,11 +67,17 @@ class SyncController: ObservableObject {
     /// Start or hot-swap to screen sync mode.
     func startScreenSync() {
         activeVibe = nil
-        let cc = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
-        let zones = ZoneConfig.load(channelCount: cc).zones
-        activeSource = ScreenCaptureSource(zones: zones, responsiveness: responsiveness)
+        activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
         if connectionStatus == .disconnected {
             startSession()
+        }
+    }
+
+    /// Persist zone config and hot-swap the capture source if currently streaming.
+    func saveZoneConfig() {
+        zoneConfig.save()
+        if connectionStatus == .streaming {
+            startScreenSync()
         }
     }
 
