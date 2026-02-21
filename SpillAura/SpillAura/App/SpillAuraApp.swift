@@ -7,10 +7,13 @@ struct SpillAuraApp: App {
     @StateObject private var vibeLibrary = VibeLibrary()
 
     var body: some Scene {
-        MenuBarExtra("SpillAura", systemImage: "sun.max") {
+        MenuBarExtra {
             MenuBarView()
                 .environmentObject(syncController)
                 .environmentObject(vibeLibrary)
+        } label: {
+            Image(systemName: syncController.menuBarIcon)
+                .accessibilityLabel("SpillAura")
         }
         .menuBarExtraStyle(.window)
 

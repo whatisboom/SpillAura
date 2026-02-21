@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Combine
 
@@ -16,8 +17,12 @@ class SyncController: ObservableObject {
         case error(String)
     }
 
-    @Published private(set) var connectionStatus: ConnectionStatus = .disconnected
+    @Published private(set) var connectionStatus: ConnectionStatus = .disconnected {
+        didSet { menuBarIcon = Self.icon(for: connectionStatus) }
+    }
     @Published private(set) var activeVibe: Vibe? = nil
+
+    @Published private(set) var menuBarIcon: String = "lightbulb"
 
     @Published var responsiveness: SyncResponsiveness = {
         let raw = UserDefaults.standard.string(forKey: "syncResponsiveness") ?? ""
@@ -42,7 +47,27 @@ class SyncController: ObservableObject {
         return ZoneConfig.load(channelCount: cc)
     }()
 
+    // MARK: - Init / deinit
+
+    init() {
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.stop() }
+        }
+    }
+
+    deinit {
+        if let o = sleepObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(o)
+        }
+    }
+
     // MARK: - Private
+
+    private var sleepObserver: (any NSObjectProtocol)?
 
     private let syncActor = SyncActor()
     private var session: EntertainmentSession?
@@ -219,6 +244,19 @@ class SyncController: ObservableObject {
 
         if case .idle = state { } else if let errorMessage = session?.lastError {
             connectionStatus = .error(errorMessage)
+        }
+    }
+}
+
+// MARK: - Helpers
+
+extension SyncController {
+    private static func icon(for status: ConnectionStatus) -> String {
+        switch status {
+        case .disconnected: return "lightbulb"
+        case .connecting:   return "lightbulb"
+        case .streaming:    return "lightbulb.fill"
+        case .error:        return "lightbulb.slash"
         }
     }
 }
