@@ -193,7 +193,7 @@ class SyncController: ObservableObject {
                         var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
                         if let ch = self.pulsedChannel,
                            let idx = colors.firstIndex(where: { $0.channel == ch }) {
-                            let brightness = Float(0.5 + 0.5 * sin(elapsed * .pi * 4))
+                            let brightness = Float(0.5 + 0.5 * sin(elapsed * .pi))
                             colors[idx] = (channel: ch, r: brightness, g: brightness, b: brightness)
                         }
                         self.session?.sendColors(colors)
@@ -223,7 +223,7 @@ private final class IdentifySource: LightSource {
     init(channel: UInt8) { self.channel = channel }
 
     func nextColors(channelCount: Int, at timestamp: TimeInterval) -> [(channel: UInt8, r: Float, g: Float, b: Float)] {
-        let brightness = Float(0.5 + 0.5 * sin(timestamp * .pi * 4))
+        let brightness = Float(0.5 + 0.5 * sin(timestamp * .pi))
         return (0..<channelCount).map { i in
             let ch = UInt8(i)
             let v = ch == channel ? brightness : 0

@@ -100,7 +100,7 @@ struct ScreenSyncView: View {
                                     let phase = tl.date.timeIntervalSinceReferenceDate
                                     Rectangle()
                                         .fill(Color.white.opacity(
-                                            0.45 * (0.5 + 0.5 * sin(phase * .pi * 4))
+                                            0.45 * (0.5 + 0.5 * sin(phase * .pi))
                                         ))
                                 }
                             }
