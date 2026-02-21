@@ -1,80 +1,64 @@
 import Foundation
 import CoreGraphics
 
-/// A single light zone: which channel it drives and where on screen it samples from.
-struct Zone: Codable {
-    let lightID: String
-    let channelID: UInt8
-    var region: CGRect  // normalized 0.0–1.0
+enum ScreenRegion: String, CaseIterable, Codable, Identifiable {
+    case leftEdge, rightEdge, topEdge, bottomEdge, center, fullScreen
 
-    // CGRect is not natively Codable — encode as flat keys
-    enum CodingKeys: String, CodingKey {
-        case lightID, channelID, x, y, width, height
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .leftEdge:   return "Left Edge"
+        case .rightEdge:  return "Right Edge"
+        case .topEdge:    return "Top Edge"
+        case .bottomEdge: return "Bottom Edge"
+        case .center:     return "Center"
+        case .fullScreen: return "Full Screen"
+        }
     }
 
-    init(lightID: String, channelID: UInt8, region: CGRect) {
-        self.lightID = lightID
-        self.channelID = channelID
-        self.region = region
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        lightID   = try c.decode(String.self, forKey: .lightID)
-        channelID = try c.decode(UInt8.self,  forKey: .channelID)
-        let x = try c.decode(Double.self, forKey: .x)
-        let y = try c.decode(Double.self, forKey: .y)
-        let w = try c.decode(Double.self, forKey: .width)
-        let h = try c.decode(Double.self, forKey: .height)
-        region = CGRect(x: x, y: y, width: w, height: h)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(lightID,           forKey: .lightID)
-        try c.encode(channelID,         forKey: .channelID)
-        try c.encode(region.origin.x,   forKey: .x)
-        try c.encode(region.origin.y,   forKey: .y)
-        try c.encode(region.size.width,  forKey: .width)
-        try c.encode(region.size.height, forKey: .height)
+    /// Normalized CGRect (0.0–1.0) for this region.
+    var rect: CGRect {
+        switch self {
+        case .leftEdge:   return CGRect(x: 0.0,  y: 0.0,  width: 0.2,  height: 1.0)
+        case .rightEdge:  return CGRect(x: 0.8,  y: 0.0,  width: 0.2,  height: 1.0)
+        case .topEdge:    return CGRect(x: 0.0,  y: 0.0,  width: 1.0,  height: 0.2)
+        case .bottomEdge: return CGRect(x: 0.0,  y: 0.8,  width: 1.0,  height: 0.2)
+        case .center:     return CGRect(x: 0.25, y: 0.25, width: 0.5,  height: 0.5)
+        case .fullScreen: return CGRect(x: 0.0,  y: 0.0,  width: 1.0,  height: 1.0)
+        }
     }
 }
 
-/// Manages the mapping of screen regions to Hue channel IDs.
-struct ZoneConfig {
+struct Zone: Codable {
+    let channelID: UInt8
+    var region: ScreenRegion
+}
+
+struct ZoneConfig: Codable {
+    var displayID: UInt32   // 0 = CGMainDisplayID()
     var zones: [Zone]
 
-    /// N equal vertical strips, left-to-right, channelID 0..N-1.
-    /// Used as the default until the user configures drag-to-assign.
+    /// Default: all channels sample Full Screen on the main display.
     static func defaultConfig(channelCount: Int) -> ZoneConfig {
-        let count = max(1, channelCount)
-        let zones = (0..<count).map { i in
-            Zone(
-                lightID: "channel_\(i)",
-                channelID: UInt8(i),
-                region: CGRect(
-                    x: Double(i) / Double(count),
-                    y: 0.0,
-                    width: 1.0 / Double(count),
-                    height: 1.0
-                )
-            )
+        let zones = (0..<max(1, channelCount)).map { i in
+            Zone(channelID: UInt8(i), region: .fullScreen)
         }
-        return ZoneConfig(zones: zones)
+        return ZoneConfig(displayID: 0, zones: zones)
     }
 
-    /// Load from UserDefaults; fall back to default strips if nothing saved.
+    /// Load from UserDefaults; fall back to default if nothing saved.
     static func load(channelCount: Int) -> ZoneConfig {
         guard let data = UserDefaults.standard.data(forKey: "zoneConfig"),
-              let zones = try? JSONDecoder().decode([Zone].self, from: data),
-              !zones.isEmpty else {
+              let config = try? JSONDecoder().decode(ZoneConfig.self, from: data),
+              !config.zones.isEmpty else {
             return defaultConfig(channelCount: channelCount)
         }
-        return ZoneConfig(zones: zones)
+        return config
     }
 
     func save() {
-        if let data = try? JSONEncoder().encode(zones) {
+        if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: "zoneConfig")
         }
     }
