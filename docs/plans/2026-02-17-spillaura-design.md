@@ -1,6 +1,7 @@
-# SpillAura — Product Design
+# SpillAura — Master Design
 
-**Date:** 2026-02-17
+**Created:** 2026-02-17
+**Updated:** 2026-02-21
 **Platform:** macOS 14+
 **Distribution:** Notarized DMG (no App Sandbox)
 
@@ -13,23 +14,21 @@ A macOS app that controls Philips Hue Play lights with rock-solid reliability an
 **Key differentiators over Hue Sync:**
 - Reliable DTLS session management with auto-reconnect
 - Beautiful macOS-native UI (MenuBar + main window)
-- Configurable vibe/palette system independent of screen content
+- Configurable aura/palette system independent of screen content
 - Screen sync and audio reactivity as additional modes
 
 ---
 
-## Product Milestones
+## Milestones
 
-| Milestone | Deliverable |
-|---|---|
-| **M1** | Xcode setup, project skeleton, bridge pairing UI |
-| **M2** | DTLS proof-of-concept — static color to all lights |
-| **M3** | Vibe system — static colors + cycling palettes |
-| **M4** | Screen sync |
-| **M5** | Polish — MenuBar UI, settings, sleep/wake, notarization |
-| **M6** | Audio reactivity |
-
-Each milestone is fully testable on real hardware before moving to the next.
+| Milestone | Deliverable | Status |
+|---|---|---|
+| **M1** | Bridge discovery, pairing, Keychain storage, entertainment group selection | Done |
+| **M2** | DTLS 1.2 PSK connection, entertainment session state machine, color streaming | Done |
+| **M3** | Aura system — static colors, cycling/bouncing palettes, AuraLibrary, MenuBar UI | Done |
+| **M4** | Screen sync — ScreenCaptureKit, zone regions, weighted edge average, EMA smoothing | Done |
+| **M5** | Polish — icon toggles, notarization, distribution | Next |
+| **M6** | Audio reactivity — system audio capture, frequency/beat-mapped lighting | Future |
 
 ---
 
@@ -37,59 +36,77 @@ Each milestone is fully testable on real hardware before moving to the next.
 
 ### LightSource Protocol
 
-All modes produce colors through a common protocol. The 60fps loop doesn't care which source is active — switching modes means swapping the source.
+All modes produce colors through a common protocol. The streaming loop doesn't care which source is active — switching modes means swapping the source.
 
 ```swift
-protocol LightSource {
-    func colors(for zones: [Zone], at timestamp: TimeInterval) -> [(channelID: UInt8, r: Float, g: Float, b: Float)]
+// Sources/SpillAuraCore/LightSource.swift
+public protocol LightSource: Sendable {
+    func nextColors(channelCount: Int, at timestamp: TimeInterval)
+        -> [(channel: UInt8, r: Float, g: Float, b: Float)]
 }
 ```
 
 **Implementations:**
-- `StaticColorSource` — holds one color for all channels
-- `PaletteSource` — cycles through colors over time (M3)
-- `ScreenCaptureSource` — per-zone color from screen frames (M4)
-- `AudioSource` — frequency/beat driven (M6)
+- `StaticColorSource` — one fixed color for all channels
+- `PaletteSource` — cycles/bounces through aura palette colors with per-channel phase offset
+- `ScreenCaptureSource` — per-zone weighted average from screen frames
+- `IdentifySource` — single channel solid color (channel identification)
+- `IdentifyAllSource` — all channels in distinct ChannelColor (reconfigure sheet)
 
 ### Component Map
 
 ```
+SpillAuraApp
+├── MainWindow (mode switcher → content → controls → bottom bar)
+│     ├── AuraControlView (scrollable aura browser, hot-swap while streaming)
+│     └── ScreenSyncView (live zone preview + responsiveness picker)
+├── MenuBarView (compact controls: mode tabs, aura/responsiveness pickers, start/stop)
+├── SettingsView (bridge, screen sync config, app preferences)
+│     ├── BridgePairingSection
+│     ├── EntertainmentGroupPicker
+│     ├── ScreenSyncSettingsSection + ZoneReconfigureSheet
+│     └── App toggles (auto-start, launch hidden, login item)
+└── SetupView (first-run wizard: discover → pair → select group → configure zones)
+
 SyncController (@MainActor)
-  └── SyncActor (background)
-        ├── LightSource (active mode)
-        │     ├── StaticColorSource
-        │     ├── PaletteSource
-        │     ├── ScreenCaptureSource
-        │     └── AudioSource
-        ├── EntertainmentSession (DTLS state machine)
-        └── ColorPacketBuilder
+  └── SyncActor (background streaming loop, ~25 Hz)
+        ├── LightSource (active mode — swappable)
+        ├── HueSender (sends UDP packets via NWConnection)
+        └── pulsedIdentify override (array of channel color overrides)
+
+EntertainmentSession (@MainActor)
+  ├── REST activation/deactivation (PUT action:start/stop)
+  ├── DTLS 1.2 PSK connection (NWConnection, UDP port 2100)
+  └── State machine: idle → activating → connecting → streaming → deactivating
+                                                    → reconnecting (up to 3 retries)
 ```
 
 ### Actor Isolation
 
 | Component | Isolation | Reason |
 |---|---|---|
-| `SyncController.isRunning`, mode, status | `@MainActor` | SwiftUI binding |
-| 60fps tick loop | `SyncActor` | CPU-bound, must not block main thread |
-| `NWConnection.send` | `SyncActor` | No actor hops per frame |
+| `SyncController` — published state, mode, status | `@MainActor` | SwiftUI binding |
+| `SyncActor` — 25 Hz tick loop, packet sends | Actor | Must not block main thread |
+| `EntertainmentSession` — state machine, REST calls | `@MainActor` | Publishes state for UI |
+| `ScreenCaptureSource` — frame processing | `frameQueue` (serial DispatchQueue) | SCKit callback thread |
 | Sleep/wake observers | `@MainActor` | `NSWorkspace` fires on main |
 
-**Rule:** No `await` inside the tick loop body.
+**Rule:** No `await` inside the tick loop body. `ScreenCaptureSource.nextColors()` reads from `NSLock`-protected storage synchronously.
 
 ---
 
-## DTLS Reliability
+## DTLS + Entertainment API
 
-### Session State Machine
+### Session Lifecycle
 
 ```
 idle
-  → activate()       → activating
+  → activate()       → activating   (PUT action:stop + 500ms + PUT action:start)
 activating
-  → REST PUT start   → connecting
+  → REST success     → connecting   (open NWConnection with DTLS 1.2 PSK)
   → failure          → idle (error surfaced in UI)
 connecting
-  → DTLS handshake   → streaming
+  → DTLS handshake   → streaming    (start 25 Hz tick loop)
   → failure          → reconnecting
 streaming
   → send fails       → reconnecting
@@ -101,91 +118,165 @@ deactivating
   → REST PUT stop    → idle
 ```
 
-The tick loop always runs — it is the keep-alive. Color sends pause during `reconnecting` but resume immediately when the connection is restored.
+**Zombie session fix:** Always send `PUT action:stop` + 500ms sleep before `PUT action:start`. Bridge keeps REST status "active" after DTLS timeout.
 
 ### Connection Parameters
 
 - DTLS 1.2 over UDP via `Network.framework`
-- PSK identity: `username` as UTF-8 Data (no null terminator)
-- PSK value: `clientKey` hex string decoded to raw Data
+- PSK identity: `username` as UTF-8 `DispatchData` (no null terminator)
+- PSK value: `clientKey` hex string decoded to raw `DispatchData`
 - Bridge UDP port: 2100
+- **VPN fix:** Filter `NWPathMonitor` interfaces by name prefix (`!name.hasPrefix("utun")`) and set `params.requiredInterface` to physical interface
+
+### HueStream v2.0 Packet Format
+
+```
+[16 bytes header] + [36 bytes group UUID as ASCII] + [7 bytes × N channels]
+```
+
+Header: `"HueStream"(9B) + 0x02,0x00(version) + seq(1B) + 0x00,0x00(reserved) + 0x00(RGB) + 0x00(reserved)`
+
+Per channel: `channel_id(1B) + R(2B BE) + G(2B BE) + B(2B BE)` = 7 bytes
+
+- channel_id is 1 byte (NOT 2-byte UInt16 — that was v1.0)
+- Bridge silently ignores malformed packets — no error over DTLS
+- Bridge requires ~25 Hz sustained streaming; single packets do nothing
 
 ---
 
-## Vibe System
+## Aura System
 
-### Vibe Model
+### Model
 
 ```swift
-struct Vibe: Codable, Identifiable {
-    let id: UUID
-    var name: String
-    var type: VibeType       // .static or .dynamic
-    var palette: [Color]
-    var speed: Double        // seconds per full cycle
-    var pattern: VibePattern // .cycle, .bounce, .random
-    var channelOffset: Double // 0.0–1.0, phase offset between lights
+// Sources/SpillAuraCore/Aura.swift
+public struct Aura: Codable, Identifiable, Sendable {
+    public let id: UUID
+    public var name: String
+    public var type: AuraType        // .static or .dynamic
+    public var palette: [CodableColor]
+    public var speed: Double         // cycle speed (0.08 slow … 0.80 fast)
+    public var pattern: AuraPattern  // .cycle, .bounce, .random
+    public var channelOffset: Double // 0.0–1.0, phase offset between lights
 }
-
-enum VibeType: String, Codable { case `static`, dynamic }
-enum VibePattern: String, Codable { case cycle, bounce, random }
 ```
 
 ### Storage
 
-- Built-in vibes: bundled in app bundle
-- User vibes: `~/Library/Application Support/SpillAura/vibes/*.json`
+- Built-in auras: `BuiltinAuras` enum (8 presets with fixed UUIDs)
+- User auras: `~/Library/Application Support/SpillAura/auras.json` via `AuraLibrary`
 
-### Built-in Vibes (ship with app)
+### Built-in Auras
 
-Warm Sunset, Ocean, Forest, Neon, Candlelight, Arctic, Ember, Twilight
+Disco, Neon, Fire, Warm Sunset, Forest, Ocean, Galaxy, Candy
+
+### PaletteSource
+
+Cycles or bounces through palette colors over time. Each channel receives a phase offset (`channelOffset × channelIndex / channelCount`) so adjacent lights show different colors simultaneously. Speed controls cycle rate. Outputs interpolated RGB per channel per tick.
+
+---
+
+## Screen Sync
+
+### Capture Pipeline
+
+1. **SCStream** captures main display at 160×90 resolution
+2. **Frame delegate** runs on serial background `DispatchQueue`
+3. For each zone: iterate pixels in `ScreenRegion.boundingRect()`, apply `contains(nx:ny:)` filter
+4. **Weighted edge average:** pixels where `isEdge(nx:ny:)` is true get `edgeBias`-scaled weight (1× to 5×), others get 1×
+5. **EMA smoothing:** `smoothed = smoothed × (1 - factor) + raw × factor`
+6. Store results under `NSLock`; `nextColors()` reads synchronously
+
+### Zone Configuration
+
+```swift
+struct Zone: Codable {
+    let channelID: UInt8
+    var region: ScreenRegion  // .top, .bottom, .left, .right, .center, .fullScreen
+}
+
+struct ZoneConfig: Codable {
+    var displayID: UInt32   // 0 = CGMainDisplayID()
+    var zones: [Zone]
+    var edgeBias: Double    // 0 (uniform) … 1 (edge-dominated), default 0.5
+}
+```
+
+`ScreenRegion` uses diagonal-split triangles for top/bottom/left/right — each region's `contains(nx:ny:)` and `isEdge(nx:ny:)` are computed geometrically.
+
+### Smart Defaults
+
+| Channels | Default Layout |
+|---|---|
+| 1 | Full Screen |
+| 2 | Left, Right |
+| 3 | Top, Left, Right |
+| 4+ | Top, Right, Bottom, Left (+ Full Screen for extras) |
+
+### Responsiveness Presets
+
+| Preset | EMA Factor | Frame Rate |
+|---|---|---|
+| Instant | 1.0 | 60 fps |
+| Snappy | 0.4 | 30 fps |
+| Balanced | 0.2 | 20 fps |
+| Smooth | 0.1 | 10 fps |
+| Cinematic | 0.05 | 5 fps |
+
+### Channel Identification
+
+`ChannelColor` assigns visually distinct hue-wheel colors to each channel (evenly spaced, named: Red, Lime, Cyan, Purple, etc.). Used in:
+- Zone preview canvas (colored region labels)
+- ZoneSetupStep (per-channel identify buttons)
+- Reconfigure sheet auto-identify (all channels light up on sheet open, tear down on close)
 
 ---
 
 ## UI
 
-### Dual Surface
+### Three Surfaces
 
-The app presents the same controls in two places:
-1. **MenuBar popover** — quick access
-2. **Main window** — full experience
+| Surface | Purpose | Window ID |
+|---|---|---|
+| **Main Window** | Primary control: mode switcher, aura browser / screen preview, brightness/speed, start/stop | `"main"` |
+| **MenuBar Popover** | Quick access: compact mode tabs, aura picker, responsiveness, start/stop | MenuBarExtra |
+| **Settings Window** | Configuration: bridge pairing, zone layout, display picker, edge bias, app preferences | `"settings"` |
 
-Both surfaces are always available. Users can toggle MenuBar icon and Dock icon independently in Settings (but not both off simultaneously).
-
-### MenuBar Popover Layout
+### Main Window Layout
 
 ```
-┌─────────────────────────────────┐
-│  ● SpillAura        [●] Active  │
-├─────────────────────────────────┤
-│  MODE                           │
-│  [Vibe ▼]  [Screen]  [Audio]   │
-├─────────────────────────────────┤
-│  VIBE                           │
-│  ◀ Warm Sunset ▶               │
-│  ████████████████  Speed: ●──  │
-├─────────────────────────────────┤
-│  BRIGHTNESS    ●──────────  85%│
-├─────────────────────────────────┤
-│  [Settings...]    [Quit]        │
-└─────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  [Aura │ Screen]           ● Streaming   │  ← mode picker + status badge
+├──────────────────────────────────────────┤
+│                                          │
+│  (Aura: scrollable card list)            │  ← content area
+│  (Screen: live zone preview canvas)      │
+│                                          │
+├──────────────────────────────────────────┤
+│  🐢 ──●────── 🐇   ☀ ──●────── ☀       │  ← speed (aura only) + brightness
+├──────────────────────────────────────────┤
+│  ⚙                            [Start]   │  ← settings gear + action button
+└──────────────────────────────────────────┘
 ```
 
-### Status Indicator
+### Settings Window Sections
 
-MenuBar icon reflects connection state:
-- Green dot: streaming
-- Yellow dot: connecting / reconnecting
-- Red dot: error
+- **Bridge:** paired IP, "Change Bridge" button, entertainment group picker
+- **Screen Sync:** display picker (multi-monitor), "Reconfigure…" button → zone sheet, edge bias slider
+- **App:** launch at login, auto-start streaming, launch with window hidden
 
-### Settings Window
+### First-Run Setup Wizard (SetupView)
 
-- Bridge pairing / re-pair
-- Zone configuration (screen regions → light IDs)
-- Custom vibe editor
-- Dock icon toggle
-- MenuBar icon toggle
-- Startup behavior
+Step 1: Discover / enter bridge IP → Step 2: Press link button + pair → Step 3: Select entertainment group → Step 4: Configure zones (preset + per-channel region pickers + preview canvas)
+
+### Sleep/Wake
+
+- `willSleepNotification` → `stop()`, saves `wasStreamingBeforeSleep`
+- `didWakeNotification` → if was streaming, `resumeLastSession()` (restores last aura or screen sync mode)
+
+### Session Persistence
+
+`SyncController` persists last mode (`"lastMode"`) and last aura JSON (`"lastAura"`) to UserDefaults on every `startAura`/`startScreenSync`. Auto-start on launch reads these to resume. First launch defaults to Disco.
 
 ---
 
@@ -194,34 +285,41 @@ MenuBar icon reflects connection state:
 ```
 SpillAura/
 ├── App/
-│   ├── SpillAuraApp.swift          # Entry point, MenuBarExtra + WindowGroup
-│   └── AppDelegate.swift           # Sleep/wake observers, Dock icon toggle
+│   ├── SpillAuraApp.swift            # @main, MenuBarExtra + WindowGroup + Settings
+│   └── AppDelegate.swift             # Launch-hidden window management
 ├── Sync/
-│   ├── SyncController.swift        # @MainActor, UI state + mode switching
-│   ├── SyncActor.swift             # Background 60fps loop
-│   └── LightSource.swift           # Protocol
-├── Sources/
-│   ├── StaticColorSource.swift
-│   ├── PaletteSource.swift
-│   ├── ScreenCaptureSource.swift   # M4
-│   └── AudioSource.swift           # M6
+│   ├── SyncController.swift          # @MainActor, mode switching, session lifecycle
+│   ├── SyncActor.swift               # Background 25 Hz streaming loop
+│   └── (LightSource lives in SpillAuraCore)
+├── LightSources/
+│   ├── StaticColorSource.swift       # Fixed single color
+│   └── ScreenCaptureSource.swift     # SCKit capture → weighted zone average
 ├── Hue/
-│   ├── HueBridgeDiscovery.swift    # mDNS + manual IP fallback
-│   ├── HueBridgeAuth.swift         # Link button pairing, Keychain storage
-│   ├── EntertainmentSession.swift  # State machine + DTLS
-│   └── ColorPacketBuilder.swift    # Entertainment API v2 packet format
-├── Vibes/
-│   ├── Vibe.swift                  # Model
-│   ├── VibeLibrary.swift           # Load built-ins + user vibes
-│   └── BuiltinVibes.swift          # Hardcoded presets
+│   ├── HueBridgeDiscovery.swift      # NetServiceBrowser mDNS + manual IP fallback
+│   ├── HueBridgeAuth.swift           # Link button pairing, Keychain, entertainment groups
+│   └── EntertainmentSession.swift    # REST + DTLS state machine
 ├── Config/
-│   ├── ZoneConfig.swift            # Screen region → channel mapping
-│   └── AppSettings.swift           # UserDefaults-backed settings
-└── UI/
-    ├── MenuBarView.swift
-    ├── MainWindow.swift
-    ├── SetupView.swift             # Bridge pairing + zone mapping
-    └── VibeEditor.swift            # Custom vibe creation
+│   ├── ZoneConfig.swift              # Zone, ScreenRegion, ChannelColor, ZoneLayoutPreset
+│   └── AppSettings.swift             # SyncMode, SyncResponsiveness, UserDefaults settings
+├── UI/
+│   ├── MenuBarView.swift             # Compact popover controls
+│   ├── MainWindow.swift              # Primary control surface
+│   ├── AuraControlView.swift         # Scrollable aura browser with cards
+│   ├── AuraEditor.swift              # Create/edit custom auras (sheet)
+│   ├── ScreenSyncView.swift          # Live zone preview + responsiveness
+│   ├── SettingsView.swift            # Bridge, screen sync config, app prefs, reconfigure sheet
+│   ├── SetupView.swift               # First-run wizard (discover → pair → group → zones)
+│   ├── ZoneSetupStep.swift           # Shared: preset picker + per-channel region pickers
+│   └── ZonePreviewCanvas.swift       # Shared: triangular zone preview with live colors
+└── Vibes/                            # (Legacy group name — contains SpillAuraCore refs)
+
+Sources/SpillAuraCore/                # Swift package — shared logic + tests
+├── LightSource.swift                 # Protocol
+├── Aura.swift                        # Model
+├── AuraLibrary.swift                 # Load/save built-in + user auras
+├── BuiltinAuras.swift                # 8 hardcoded presets
+├── PaletteSource.swift               # Cycle/bounce palette animation
+└── ColorPacketBuilder.swift          # HueStream v2.0 UDP packet builder
 ```
 
 ---
@@ -237,12 +335,17 @@ No App Sandbox entitlements required.
 
 ---
 
-## Tuning Parameters (expose in Settings)
+## What's Next
 
-| Parameter | Default | Effect |
-|---|---|---|
-| Capture resolution | 128×72 | Lower = faster |
-| Smoothing factor | 0.25 | Higher = snappier |
-| Target FPS | 60 | 30fps fine for most content |
-| Saturation boost | 1.2× | More vivid on lights |
-| Zone edge inset | 10% | Bias toward screen edges |
+### M5 — Polish
+
+Priority: ship a distributable v1.0.
+
+- **Dock icon toggle:** Wire `AppSettings.showDockIcon` to `NSApp.setActivationPolicy(.accessory / .regular)`
+- **MenuBar icon toggle:** Wire `AppSettings.showMenuBarIcon` (guard: can't hide both)
+- **Notarization:** Code signing + notarized DMG for distribution
+- **Any UX rough edges** discovered during daily use
+
+### M6 — Audio Reactivity (Future)
+
+System audio capture via SCKit audio stream → frequency analysis + beat detection → color mapping. Two configurable modes: frequency-mapped (bands → channels) and beat-reactive (pulse on transients). Design TBD.
