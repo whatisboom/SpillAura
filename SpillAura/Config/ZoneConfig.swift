@@ -119,44 +119,19 @@ struct ZoneConfig: Codable {
     /// Maps to a weight multiplier of 1× (bias=0) to 5× (bias=1). Default 0.5 → 3×.
     var edgeBias: Double
 
-    private enum CodingKeys: String, CodingKey {
-        case displayID, zones, edgeBias
-    }
-
-    init(displayID: UInt32, zones: [Zone], edgeBias: Double = 0.5) {
-        self.displayID = displayID
-        self.zones = zones
-        self.edgeBias = edgeBias
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        displayID = try c.decode(UInt32.self, forKey: .displayID)
-        zones     = try c.decode([Zone].self, forKey: .zones)
-        edgeBias  = try c.decodeIfPresent(Double.self, forKey: .edgeBias) ?? 0.5
-    }
-
-    /// Default: all channels sample Full Screen on the main display.
     static func defaultConfig(channelCount: Int) -> ZoneConfig {
-        let zones = (0..<max(1, channelCount)).map { i in
-            Zone(channelID: UInt8(i), region: .fullScreen)
-        }
-        return ZoneConfig(displayID: 0, zones: zones)
+        let zones = (0..<max(1, channelCount)).map { i in Zone(channelID: UInt8(i), region: .fullScreen) }
+        return ZoneConfig(displayID: 0, zones: zones, edgeBias: 0.5)
     }
 
-    /// Load from UserDefaults; fall back to default if nothing saved.
     static func load(channelCount: Int) -> ZoneConfig {
-        guard let data = UserDefaults.standard.data(forKey: "zoneConfig"),
-              let config = try? JSONDecoder().decode(ZoneConfig.self, from: data),
-              !config.zones.isEmpty else {
+        guard let data = UserDefaults.standard.data(forKey: "zoneConfig") else {
             return defaultConfig(channelCount: channelCount)
         }
-        return config
+        return try! JSONDecoder().decode(ZoneConfig.self, from: data)
     }
 
     func save() {
-        if let data = try? JSONEncoder().encode(self) {
-            UserDefaults.standard.set(data, forKey: "zoneConfig")
-        }
+        UserDefaults.standard.set(try! JSONEncoder().encode(self), forKey: "zoneConfig")
     }
 }
