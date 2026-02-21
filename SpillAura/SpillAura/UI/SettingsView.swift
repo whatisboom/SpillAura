@@ -40,8 +40,13 @@ struct SettingsView: View {
 
                 // MARK: App
                 GroupBox("App") {
-                    LoginItemRow()
-                        .padding(4)
+                    VStack(alignment: .leading, spacing: 8) {
+                        LoginItemRow()
+                        Divider()
+                        AutoStartRow()
+                        LaunchHiddenRow()
+                    }
+                    .padding(4)
                 }
             }
             .padding(24)
@@ -175,6 +180,26 @@ private struct BridgePairingSection: View {
             errorMessage = error.localizedDescription
             pairingState = .failed
         }
+    }
+}
+
+// MARK: - AutoStartRow
+
+private struct AutoStartRow: View {
+    @AppStorage("autoStartOnLaunch") private var autoStartOnLaunch = false
+
+    var body: some View {
+        Toggle("Start streaming automatically on launch", isOn: $autoStartOnLaunch)
+    }
+}
+
+// MARK: - LaunchHiddenRow
+
+private struct LaunchHiddenRow: View {
+    @AppStorage("launchWindowHidden") private var launchWindowHidden = false
+
+    var body: some View {
+        Toggle("Launch with window hidden", isOn: $launchWindowHidden)
     }
 }
 
