@@ -133,7 +133,7 @@ struct ScreenSyncView: View {
             }
         }
         .padding()
-        .frame(minWidth: 440, minHeight: 320)
+        .frame(minWidth: 320, minHeight: 320)
         .task { await loadDisplays() }
     }
 

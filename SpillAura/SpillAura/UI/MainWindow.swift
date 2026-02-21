@@ -37,7 +37,7 @@ struct MainWindow: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
         }
-        .frame(minWidth: 480, minHeight: 520)
+        .frame(minWidth: 360, minHeight: 520)
     }
 
     // MARK: - Top Bar
