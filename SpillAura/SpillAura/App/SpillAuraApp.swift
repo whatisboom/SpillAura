@@ -4,13 +4,13 @@ import SwiftUI
 struct SpillAuraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var syncController = SyncController()
-    @StateObject private var vibeLibrary = VibeLibrary()
+    @StateObject private var auraLibrary = AuraLibrary()
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(syncController)
-                .environmentObject(vibeLibrary)
+                .environmentObject(auraLibrary)
         } label: {
             Image(systemName: syncController.menuBarIcon)
                 .accessibilityLabel("SpillAura")
@@ -20,7 +20,7 @@ struct SpillAuraApp: App {
         WindowGroup("SpillAura", id: "main") {
             MainWindow()
                 .environmentObject(syncController)
-                .environmentObject(vibeLibrary)
+                .environmentObject(auraLibrary)
         }
 
         Window("Settings", id: "settings") {

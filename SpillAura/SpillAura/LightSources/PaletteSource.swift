@@ -3,11 +3,11 @@ import Foundation
 /// A `LightSource` that animates through a color palette with per-channel phase offsets.
 ///
 /// - **cycle**: Continuously loops through the palette. Channel `i` is offset by
-///   `vibe.channelOffset * i` (as a fraction of one full cycle).
+///   `aura.channelOffset * i` (as a fraction of one full cycle).
 /// - **bounce**: Sweeps palette forward then backward. Same per-channel offset applies.
 /// - **random**: Treated as fast cycle for a stochastic appearance.
 struct PaletteSource: LightSource {
-    let vibe: Vibe
+    let aura: Aura
 
     func nextColors(channelCount: Int, at timestamp: TimeInterval) -> [(channel: UInt8, r: Float, g: Float, b: Float)] {
         (0..<channelCount).map { channelIndex in
@@ -19,13 +19,13 @@ struct PaletteSource: LightSource {
     // MARK: - Private
 
     private func paletteColor(channelIndex: Int, at t: TimeInterval) -> CodableColor {
-        let palette = vibe.palette
+        let palette = aura.palette
         guard !palette.isEmpty else { return CodableColor(red: 0, green: 0, blue: 0) }
         guard palette.count > 1 else { return palette[0] }
 
-        let rawPhase = t * vibe.speed + vibe.channelOffset * Double(channelIndex)
+        let rawPhase = t * aura.speed + aura.channelOffset * Double(channelIndex)
 
-        switch vibe.pattern {
+        switch aura.pattern {
         case .cycle, .random:
             var pos = rawPhase.truncatingRemainder(dividingBy: 1.0)
             if pos < 0 { pos += 1.0 }

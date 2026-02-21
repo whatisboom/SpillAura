@@ -20,7 +20,7 @@ class SyncController: ObservableObject {
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected {
         didSet { menuBarIcon = Self.icon(for: connectionStatus) }
     }
-    @Published private(set) var activeVibe: Vibe? = nil
+    @Published private(set) var activeAura: Aura? = nil
 
     @Published private(set) var menuBarIcon: String = "lightbulb"
 
@@ -85,7 +85,7 @@ class SyncController: ObservableObject {
     private var session: EntertainmentSession?
     private var sessionStateCancellable: AnyCancellable?
 
-    /// The source the streaming loop reads each tick. Swap this to change vibes mid-stream.
+    /// The source the streaming loop reads each tick. Swap this to change auras mid-stream.
     private var activeSource: LightSource? = nil
     private var channelCount: Int = 1
 
@@ -100,13 +100,13 @@ class SyncController: ObservableObject {
 
     // MARK: - Public API
 
-    /// Start or hot-swap to a palette-based vibe.
-    func startVibe(_ vibe: Vibe) {
-        activeVibe = vibe
-        activeSource = PaletteSource(vibe: vibe)
+    /// Start or hot-swap to a palette-based aura.
+    func startAura(_ aura: Aura) {
+        activeAura = aura
+        activeSource = PaletteSource(aura: aura)
         UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: "lastMode")
-        if let data = try? JSONEncoder().encode(vibe) {
-            UserDefaults.standard.set(data, forKey: "lastVibe")
+        if let data = try? JSONEncoder().encode(aura) {
+            UserDefaults.standard.set(data, forKey: "lastAura")
         }
         if connectionStatus == .disconnected {
             startSession()
@@ -116,14 +116,14 @@ class SyncController: ObservableObject {
     /// Activate the entertainment session and send a static color to all lights.
     func startStaticColor(r: Float, g: Float, b: Float) {
         guard connectionStatus == .disconnected else { return }
-        activeVibe = nil
+        activeAura = nil
         activeSource = StaticColorSource(r: r, g: g, b: b)
         startSession()
     }
 
     /// Start or hot-swap to screen sync mode.
     func startScreenSync() {
-        activeVibe = nil
+        activeAura = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
         UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: "lastMode")
         if connectionStatus == .disconnected {
@@ -170,7 +170,7 @@ class SyncController: ObservableObject {
         isIdentifySession = false
         session?.stop()
         activeSource = nil
-        activeVibe = nil
+        activeAura = nil
     }
 
     // MARK: - Private
@@ -185,12 +185,12 @@ class SyncController: ObservableObject {
         if mode == .screen {
             startScreenSync()
         } else if mode == .aura,
-                  let data = UserDefaults.standard.data(forKey: "lastVibe"),
-                  let vibe = try? JSONDecoder().decode(Vibe.self, from: data) {
-            startVibe(vibe)
+                  let data = UserDefaults.standard.data(forKey: "lastAura"),
+                  let aura = try? JSONDecoder().decode(Aura.self, from: data) {
+            startAura(aura)
         } else {
             // First launch — no saved session. Start with Disco.
-            startVibe(BuiltinVibes.disco)
+            startAura(BuiltinAuras.disco)
         }
     }
 
@@ -240,7 +240,7 @@ class SyncController: ObservableObject {
                 connectionStatus = .disconnected
             }
             isRunning = false
-            activeVibe = nil
+            activeAura = nil
             session = nil
             sessionStateCancellable = nil
             Task { [weak self] in

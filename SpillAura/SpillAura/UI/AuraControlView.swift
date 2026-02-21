@@ -1,28 +1,28 @@
 import SwiftUI
 
-/// Scrollable vibe browser for the main window's Vibe mode.
-/// While stopped: tapping a card updates `selectedVibe` binding for the Start button.
+/// Scrollable aura browser for the main window's Aura mode.
+/// While stopped: tapping a card updates `selectedAura` binding for the Start button.
 /// While streaming: tapping a card hot-swaps immediately.
-struct VibeControlView: View {
+struct AuraControlView: View {
     @EnvironmentObject var syncController: SyncController
-    @EnvironmentObject var vibeLibrary: VibeLibrary
-    @Binding var selectedVibe: Vibe?
+    @EnvironmentObject var auraLibrary: AuraLibrary
+    @Binding var selectedAura: Aura?
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 6) {
-                ForEach(vibeLibrary.vibes) { vibe in
-                    VibeCard(
-                        vibe: vibe,
+                ForEach(auraLibrary.auras) { aura in
+                    AuraCard(
+                        aura: aura,
                         isSelected: syncController.connectionStatus == .streaming
-                            ? syncController.activeVibe?.id == vibe.id
-                            : selectedVibe?.id == vibe.id
+                            ? syncController.activeAura?.id == aura.id
+                            : selectedAura?.id == aura.id
                     )
                     .onTapGesture {
                         if syncController.connectionStatus == .streaming {
-                            syncController.startVibe(vibe)
+                            syncController.startAura(aura)
                         } else {
-                            selectedVibe = vibe
+                            selectedAura = aura
                         }
                     }
                 }
@@ -31,21 +31,21 @@ struct VibeControlView: View {
             .padding(.vertical, 8)
         }
         .onAppear {
-            if selectedVibe == nil { selectedVibe = vibeLibrary.vibes.first }
+            if selectedAura == nil { selectedAura = auraLibrary.auras.first }
         }
     }
 }
 
-// MARK: - VibeCard
+// MARK: - AuraCard
 
-private struct VibeCard: View {
-    let vibe: Vibe
+private struct AuraCard: View {
+    let aura: Aura
     let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             swatchStrip
-            Text(vibe.name)
+            Text(aura.name)
                 .fontWeight(.medium)
             Spacer()
         }
@@ -67,7 +67,7 @@ private struct VibeCard: View {
 
     private var swatchStrip: some View {
         HStack(spacing: 2) {
-            ForEach(Array(vibe.palette.enumerated()), id: \.offset) { _, c in
+            ForEach(Array(aura.palette.enumerated()), id: \.offset) { _, c in
                 Rectangle()
                     .fill(Color(red: c.red, green: c.green, blue: c.blue))
             }

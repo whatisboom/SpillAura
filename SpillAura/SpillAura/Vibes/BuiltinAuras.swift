@@ -1,15 +1,15 @@
 import Foundation
 
-/// The 8 built-in vibes shipped with SpillAura.
+/// The 8 built-in auras shipped with SpillAura.
 ///
 /// Fixed UUIDs ensure stable identity across launches so user selections persist.
-enum BuiltinVibes {
+enum BuiltinAuras {
 
-    static let all: [Vibe] = [
+    static let all: [Aura] = [
         warmSunset, neon, ocean, forest, candy, fire, galaxy, disco
     ]
 
-    static let warmSunset = Vibe(
+    static let warmSunset = Aura(
         id: UUID(uuidString: "00000001-0000-0000-0000-000000000000")!,
         name: "Warm Sunset",
         type: .dynamic,
@@ -24,7 +24,7 @@ enum BuiltinVibes {
         channelOffset: 0.15
     )
 
-    static let neon = Vibe(
+    static let neon = Aura(
         id: UUID(uuidString: "00000002-0000-0000-0000-000000000000")!,
         name: "Neon",
         type: .dynamic,
@@ -38,7 +38,7 @@ enum BuiltinVibes {
         channelOffset: 0.33
     )
 
-    static let ocean = Vibe(
+    static let ocean = Aura(
         id: UUID(uuidString: "00000003-0000-0000-0000-000000000000")!,
         name: "Ocean",
         type: .dynamic,
@@ -53,7 +53,7 @@ enum BuiltinVibes {
         channelOffset: 0.25
     )
 
-    static let forest = Vibe(
+    static let forest = Aura(
         id: UUID(uuidString: "00000004-0000-0000-0000-000000000000")!,
         name: "Forest",
         type: .dynamic,
@@ -67,7 +67,7 @@ enum BuiltinVibes {
         channelOffset: 0.20
     )
 
-    static let candy = Vibe(
+    static let candy = Aura(
         id: UUID(uuidString: "00000005-0000-0000-0000-000000000000")!,
         name: "Candy",
         type: .dynamic,
@@ -81,7 +81,7 @@ enum BuiltinVibes {
         channelOffset: 0.33
     )
 
-    static let fire = Vibe(
+    static let fire = Aura(
         id: UUID(uuidString: "00000006-0000-0000-0000-000000000000")!,
         name: "Fire",
         type: .dynamic,
@@ -95,7 +95,7 @@ enum BuiltinVibes {
         channelOffset: 0.20
     )
 
-    static let galaxy = Vibe(
+    static let galaxy = Aura(
         id: UUID(uuidString: "00000007-0000-0000-0000-000000000000")!,
         name: "Galaxy",
         type: .dynamic,
@@ -110,7 +110,7 @@ enum BuiltinVibes {
         channelOffset: 0.25
     )
 
-    static let disco = Vibe(
+    static let disco = Aura(
         id: UUID(uuidString: "00000008-0000-0000-0000-000000000000")!,
         name: "Disco",
         type: .dynamic,

@@ -2,14 +2,14 @@ import SwiftUI
 
 struct MainWindow: View {
     @EnvironmentObject var syncController: SyncController
-    @EnvironmentObject var vibeLibrary: VibeLibrary
+    @EnvironmentObject var auraLibrary: AuraLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @State private var mode: Mode = .vibe
-    @State private var selectedVibe: Vibe? = nil
+    @State private var mode: Mode = .aura
+    @State private var selectedAura: Aura? = nil
 
     private enum Mode: String, CaseIterable {
-        case vibe = "Vibe"
+        case aura = "Aura"
         case screen = "Screen"
     }
 
@@ -94,8 +94,8 @@ struct MainWindow: View {
     @ViewBuilder
     private var contentArea: some View {
         switch mode {
-        case .vibe:
-            VibeControlView(selectedVibe: $selectedVibe)
+        case .aura:
+            AuraControlView(selectedAura: $selectedAura)
         case .screen:
             ScreenSyncView()
         }
@@ -105,7 +105,7 @@ struct MainWindow: View {
 
     private var controlRows: some View {
         HStack(spacing: 10) {
-            if mode == .vibe {
+            if mode == .aura {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
                 Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
                 Image(systemName: "hare").foregroundStyle(.secondary)
@@ -136,16 +136,16 @@ struct MainWindow: View {
             if syncController.connectionStatus == .disconnected {
                 Button("Start") {
                     switch mode {
-                    case .vibe:
-                        if let v = selectedVibe ?? vibeLibrary.vibes.first {
-                            syncController.startVibe(v)
+                    case .aura:
+                        if let a = selectedAura ?? auraLibrary.auras.first {
+                            syncController.startAura(a)
                         }
                     case .screen:
                         syncController.startScreenSync()
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(mode == .vibe && vibeLibrary.vibes.isEmpty)
+                .disabled(mode == .aura && auraLibrary.auras.isEmpty)
             } else {
                 Button("Stop") { syncController.stop() }
                     .buttonStyle(.bordered)

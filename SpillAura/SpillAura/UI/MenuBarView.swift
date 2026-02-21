@@ -2,10 +2,10 @@ import SwiftUI
 
 struct MenuBarView: View {
     @EnvironmentObject var syncController: SyncController
-    @EnvironmentObject var vibeLibrary: VibeLibrary
+    @EnvironmentObject var auraLibrary: AuraLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @State private var vibeIndex: Int = 0
+    @State private var auraIndex: Int = 0
     @State private var mode: Mode = .aura
 
     private enum Mode: String, CaseIterable {
@@ -37,7 +37,7 @@ struct MenuBarView: View {
             }
 
             switch mode {
-            case .aura:   vibePicker
+            case .aura:   auraPicker
             case .screen: screenControls
             }
 
@@ -59,22 +59,22 @@ struct MenuBarView: View {
         .frame(width: 260)
     }
 
-    // MARK: - Vibe Picker
+    // MARK: - Aura Picker
 
     @ViewBuilder
-    private var vibePicker: some View {
+    private var auraPicker: some View {
         VStack(spacing: 8) {
             HStack {
                 Button {
-                    vibeIndex = (vibeIndex - 1 + vibeLibrary.vibes.count) % max(vibeLibrary.vibes.count, 1)
+                    auraIndex = (auraIndex - 1 + auraLibrary.auras.count) % max(auraLibrary.auras.count, 1)
                 } label: {
                     Image(systemName: "chevron.left")
                 }
-                .disabled(vibeLibrary.vibes.count < 2)
+                .disabled(auraLibrary.auras.count < 2)
 
                 Spacer()
 
-                Text(vibeLibrary.vibes.isEmpty ? "No Vibes" : vibeLibrary.vibes[vibeIndex].name)
+                Text(auraLibrary.auras.isEmpty ? "No Auras" : auraLibrary.auras[auraIndex].name)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .lineLimit(1)
@@ -82,29 +82,29 @@ struct MenuBarView: View {
                 Spacer()
 
                 Button {
-                    vibeIndex = (vibeIndex + 1) % max(vibeLibrary.vibes.count, 1)
+                    auraIndex = (auraIndex + 1) % max(auraLibrary.auras.count, 1)
                 } label: {
                     Image(systemName: "chevron.right")
                 }
-                .disabled(vibeLibrary.vibes.count < 2)
+                .disabled(auraLibrary.auras.count < 2)
             }
-            .onChange(of: vibeIndex) { _, newIndex in
-                if syncController.connectionStatus == .streaming, !vibeLibrary.vibes.isEmpty {
-                    syncController.startVibe(vibeLibrary.vibes[newIndex])
+            .onChange(of: auraIndex) { _, newIndex in
+                if syncController.connectionStatus == .streaming, !auraLibrary.auras.isEmpty {
+                    syncController.startAura(auraLibrary.auras[newIndex])
                 }
             }
-            .onChange(of: syncController.activeVibe?.id) { _, newID in
+            .onChange(of: syncController.activeAura?.id) { _, newID in
                 guard let newID,
-                      let idx = vibeLibrary.vibes.firstIndex(where: { $0.id == newID }) else { return }
-                vibeIndex = idx
+                      let idx = auraLibrary.auras.firstIndex(where: { $0.id == newID }) else { return }
+                auraIndex = idx
             }
 
             HStack(spacing: 8) {
                 Button("Start") {
-                    guard !vibeLibrary.vibes.isEmpty else { return }
-                    syncController.startVibe(vibeLibrary.vibes[vibeIndex])
+                    guard !auraLibrary.auras.isEmpty else { return }
+                    syncController.startAura(auraLibrary.auras[auraIndex])
                 }
-                .disabled(syncController.connectionStatus != .disconnected || vibeLibrary.vibes.isEmpty)
+                .disabled(syncController.connectionStatus != .disconnected || auraLibrary.auras.isEmpty)
 
                 Button("Stop") { syncController.stop() }
                     .disabled(syncController.connectionStatus == .disconnected)
