@@ -7,9 +7,6 @@ struct MainWindow: View {
 
     @State private var mode: Mode = .vibe
     @State private var selectedVibe: Vibe? = nil
-    /// Slider display position 4...20. vibe.speed = 24 - vibeSpeedDisplay.
-    /// Left (4) → vibe.speed 20 (slow/tortoise). Right (20) → vibe.speed 4 (fast/hare).
-    @State private var vibeSpeedDisplay: Double = 16.0
 
     private enum Mode: String, CaseIterable {
         case vibe = "Vibe"
@@ -110,14 +107,8 @@ struct MainWindow: View {
         HStack(spacing: 10) {
             if mode == .vibe {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
-                Slider(value: $vibeSpeedDisplay, in: 4...20)
+                Slider(value: $syncController.speedMultiplier, in: 0.25...3.0)
                     .frame(width: 100)
-                    .onChange(of: vibeSpeedDisplay) { _, newDisplay in
-                        guard syncController.connectionStatus == .streaming,
-                              var vibe = syncController.activeVibe else { return }
-                        vibe.speed = 24.0 - newDisplay
-                        syncController.startVibe(vibe)
-                    }
                 Image(systemName: "hare").foregroundStyle(.secondary)
 
                 Divider().frame(height: 16)
@@ -126,10 +117,6 @@ struct MainWindow: View {
             Image(systemName: "sun.min").foregroundStyle(.secondary)
             Slider(value: $syncController.brightness, in: 0...1)
             Image(systemName: "sun.max").foregroundStyle(.secondary)
-        }
-        .onChange(of: selectedVibe?.id) { _, _ in
-            let speed = selectedVibe?.speed ?? 8.0
-            vibeSpeedDisplay = min(20, max(4, 24.0 - speed))
         }
     }
 
@@ -151,8 +138,7 @@ struct MainWindow: View {
                 Button("Start") {
                     switch mode {
                     case .vibe:
-                        if var v = selectedVibe ?? vibeLibrary.vibes.first {
-                            v.speed = 24.0 - vibeSpeedDisplay
+                        if let v = selectedVibe ?? vibeLibrary.vibes.first {
                             syncController.startVibe(v)
                         }
                     case .screen:

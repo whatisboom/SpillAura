@@ -38,6 +38,13 @@ class SyncController: ObservableObject {
         didSet { UserDefaults.standard.set(brightness, forKey: "brightness") }
     }
 
+    @Published var speedMultiplier: Double = {
+        let stored = UserDefaults.standard.double(forKey: "speedMultiplier")
+        return stored == 0 ? 1.0 : stored
+    }() {
+        didSet { UserDefaults.standard.set(speedMultiplier, forKey: "speedMultiplier") }
+    }
+
     /// Latest per-channel colors from the active source. Updated every tick while streaming.
     /// Used by ScreenSyncView for the live zone preview.
     @Published private(set) var previewColors: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
@@ -222,7 +229,7 @@ class SyncController: ObservableObject {
                 while self.connectionStatus == .streaming {
                     let elapsed = Date.timeIntervalSinceReferenceDate - startTime
                     if let source = self.activeSource {
-                        var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed)
+                        var colors = source.nextColors(channelCount: capturedChannelCount, at: elapsed * self.speedMultiplier)
                         if let ch = self.pulsedChannel,
                            let idx = colors.firstIndex(where: { $0.channel == ch }) {
                             let pulse = Float(0.5 + 0.5 * sin(elapsed * .pi))
