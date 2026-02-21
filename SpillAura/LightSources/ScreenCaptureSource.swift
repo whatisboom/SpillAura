@@ -131,7 +131,7 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
         var result: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
         for (i, zone) in config.zones.enumerated() {
-            let r = zone.region.rect
+            let r = zone.region.rect(depth: config.depth)
             let zx = Int(r.minX   * Double(pw))
             let zy = Int(r.minY   * Double(ph))
             let zw = max(1, Int(r.width  * Double(pw)))
@@ -146,7 +146,7 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
                 for x in zx..<min(zx + zw, pw) {
                     let isEdge = (x - zx) < edgeW || (zx + zw - 1 - x) < edgeW
                               || (y - zy) < edgeH || (zy + zh - 1 - y) < edgeH
-                    let w = isEdge ? 3.0 : 1.0
+                    let w = isEdge ? config.edgeWeight : 1.0
                     let off = y * bpr + x * 4  // BGRA
                     let b = Double(buf[off])     / 255.0
                     let g = Double(buf[off + 1]) / 255.0

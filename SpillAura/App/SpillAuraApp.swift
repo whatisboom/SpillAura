@@ -25,6 +25,7 @@ struct SpillAuraApp: App {
 
         Window("Settings", id: "settings") {
             SettingsView()
+                .environmentObject(syncController)
         }
         .windowResizability(.contentSize)
     }
