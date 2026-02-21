@@ -45,13 +45,8 @@ private struct VibeCard: View {
     var body: some View {
         HStack(spacing: 12) {
             swatchStrip
-            VStack(alignment: .leading, spacing: 2) {
-                Text(vibe.name)
-                    .fontWeight(.medium)
-                Text(speedLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(vibe.name)
+                .fontWeight(.medium)
             Spacer()
         }
         .padding(.horizontal, 12)
@@ -81,12 +76,4 @@ private struct VibeCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
-    private var speedLabel: String {
-        guard vibe.type == .dynamic else { return "Static" }
-        if vibe.speed < 2  { return "Very fast" }
-        if vibe.speed < 5  { return "Fast" }
-        if vibe.speed < 10 { return "Medium" }
-        if vibe.speed < 20 { return "Slow" }
-        return "Very slow"
-    }
 }
