@@ -7,6 +7,7 @@ struct MainWindow: View {
 
     @State private var mode: Mode = .vibe
     @State private var selectedVibe: Vibe? = nil
+    @State private var vibeSpeed: Double = 8.0
 
     private enum Mode: String, CaseIterable {
         case vibe = "Vibe"
@@ -27,7 +28,7 @@ struct MainWindow: View {
 
             Divider()
 
-            brightnessRow
+            controlRows
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
 
@@ -101,13 +102,33 @@ struct MainWindow: View {
         }
     }
 
-    // MARK: - Brightness
+    // MARK: - Control Rows (speed + brightness)
 
-    private var brightnessRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "sun.min").foregroundStyle(.secondary)
-            Slider(value: $syncController.brightness, in: 0...1)
-            Image(systemName: "sun.max").foregroundStyle(.secondary)
+    private var controlRows: some View {
+        VStack(spacing: 8) {
+            if mode == .vibe {
+                HStack(spacing: 8) {
+                    Image(systemName: "hare").foregroundStyle(.secondary)
+                    Slider(value: $vibeSpeed, in: 1...30)
+                    Image(systemName: "tortoise").foregroundStyle(.secondary)
+                }
+                .onChange(of: vibeSpeed) { _, newSpeed in
+                    guard var vibe = selectedVibe else { return }
+                    vibe.speed = newSpeed
+                    selectedVibe = vibe
+                    if syncController.connectionStatus == .streaming {
+                        syncController.startVibe(vibe)
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "sun.min").foregroundStyle(.secondary)
+                Slider(value: $syncController.brightness, in: 0...1)
+                Image(systemName: "sun.max").foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: selectedVibe?.id) { _, _ in
+            vibeSpeed = selectedVibe?.speed ?? 8.0
         }
     }
 
