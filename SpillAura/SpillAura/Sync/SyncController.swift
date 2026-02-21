@@ -104,7 +104,7 @@ class SyncController: ObservableObject {
     func startVibe(_ vibe: Vibe) {
         activeVibe = vibe
         activeSource = PaletteSource(vibe: vibe)
-        UserDefaults.standard.set(SyncMode.vibe.rawValue, forKey: "lastMode")
+        UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: "lastMode")
         if let data = try? JSONEncoder().encode(vibe) {
             UserDefaults.standard.set(data, forKey: "lastVibe")
         }
@@ -184,7 +184,7 @@ class SyncController: ObservableObject {
 
         if mode == .screen {
             startScreenSync()
-        } else if mode == .vibe,
+        } else if mode == .aura,
                   let data = UserDefaults.standard.data(forKey: "lastVibe"),
                   let vibe = try? JSONDecoder().decode(Vibe.self, from: data) {
             startVibe(vibe)

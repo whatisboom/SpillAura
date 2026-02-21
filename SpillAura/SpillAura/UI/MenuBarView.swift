@@ -6,10 +6,10 @@ struct MenuBarView: View {
     @Environment(\.openWindow) private var openWindow
 
     @State private var vibeIndex: Int = 0
-    @State private var mode: Mode = .vibe
+    @State private var mode: Mode = .aura
 
     private enum Mode: String, CaseIterable {
-        case vibe = "Vibe"
+        case aura = "Aura"
         case screen = "Screen"
     }
 
@@ -37,7 +37,7 @@ struct MenuBarView: View {
             }
 
             switch mode {
-            case .vibe:   vibePicker
+            case .aura:   vibePicker
             case .screen: screenControls
             }
 
@@ -92,6 +92,11 @@ struct MenuBarView: View {
                 if syncController.connectionStatus == .streaming, !vibeLibrary.vibes.isEmpty {
                     syncController.startVibe(vibeLibrary.vibes[newIndex])
                 }
+            }
+            .onChange(of: syncController.activeVibe?.id) { _, newID in
+                guard let newID,
+                      let idx = vibeLibrary.vibes.firstIndex(where: { $0.id == newID }) else { return }
+                vibeIndex = idx
             }
 
             HStack(spacing: 8) {

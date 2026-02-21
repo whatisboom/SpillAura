@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 enum SyncMode: String {
-    case vibe, screen
+    case aura, screen
 }
 
 enum SyncResponsiveness: String, CaseIterable, Identifiable {
