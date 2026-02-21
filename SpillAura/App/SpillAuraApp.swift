@@ -1,4 +1,5 @@
 import SwiftUI
+import SpillAuraCore
 
 @main
 struct SpillAuraApp: App {

@@ -6,14 +6,25 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CA5B0B2C2F45900000EE4898 /* SpillAuraCore in Frameworks */ = {isa = PBXBuildFile; productRef = CA5B0B2B2F45900000EE4898 /* SpillAuraCore */; };
+		CA5B0B2E2F45900000EE4898 /* SpillAuraCore in Frameworks */ = {isa = PBXBuildFile; productRef = CA5B0B2D2F45900000EE4898 /* SpillAuraCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		CA5B0B0B2F45794800EE4898 /* SpillAura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpillAura.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA5B0B1A2F45800000EE4898 /* SpillAuraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpillAuraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CA5B0B0D2F45794800EE4898 /* SpillAura */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SpillAura;
+			sourceTree = "<group>";
+		};
+		CA5B0B212F45800000EE4898 /* SpillAuraTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SpillAuraTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +34,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA5B0B2C2F45900000EE4898 /* SpillAuraCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA5B0B222F45800000EE4898 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA5B0B2E2F45900000EE4898 /* SpillAuraCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -33,6 +53,7 @@
 			isa = PBXGroup;
 			children = (
 				CA5B0B0D2F45794800EE4898 /* SpillAura */,
+				CA5B0B212F45800000EE4898 /* SpillAuraTests */,
 				CA5B0B0C2F45794800EE4898 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				CA5B0B0B2F45794800EE4898 /* SpillAura.app */,
+				CA5B0B1A2F45800000EE4898 /* SpillAuraTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,10 +87,33 @@
 			);
 			name = SpillAura;
 			packageProductDependencies = (
+				CA5B0B2B2F45900000EE4898 /* SpillAuraCore */,
 			);
 			productName = SpillAura;
 			productReference = CA5B0B0B2F45794800EE4898 /* SpillAura.app */;
 			productType = "com.apple.product-type.application";
+		};
+		CA5B0B242F45800000EE4898 /* SpillAuraTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CA5B0B272F45800000EE4898 /* Build configuration list for PBXNativeTarget "SpillAuraTests" */;
+			buildPhases = (
+				CA5B0B232F45800000EE4898 /* Sources */,
+				CA5B0B222F45800000EE4898 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CA5B0B212F45800000EE4898 /* SpillAuraTests */,
+			);
+			name = SpillAuraTests;
+			packageProductDependencies = (
+				CA5B0B2D2F45900000EE4898 /* SpillAuraCore */,
+			);
+			productName = SpillAuraTests;
+			productReference = CA5B0B1A2F45800000EE4898 /* SpillAuraTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +128,9 @@
 					CA5B0B0A2F45794800EE4898 = {
 						CreatedOnToolsVersion = 26.2;
 					};
+					CA5B0B242F45800000EE4898 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 				};
 			};
 			buildConfigurationList = CA5B0B062F45794800EE4898 /* Build configuration list for PBXProject "SpillAura" */;
@@ -94,12 +142,16 @@
 			);
 			mainGroup = CA5B0B022F45794800EE4898;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CA5B0B2A2F45900000EE4898 /* XCLocalSwiftPackageReference "." */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CA5B0B0C2F45794800EE4898 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				CA5B0B0A2F45794800EE4898 /* SpillAura */,
+				CA5B0B242F45800000EE4898 /* SpillAuraTests */,
 			);
 		};
 /* End PBXProject section */
@@ -116,6 +168,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		CA5B0B072F45794800EE4898 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA5B0B232F45800000EE4898 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -311,6 +370,32 @@
 			};
 			name = Release;
 		};
+		CA5B0B252F45800000EE4898 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = SBYAJZC442;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spillaura.SpillAuraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CA5B0B262F45800000EE4898 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = SBYAJZC442;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spillaura.SpillAuraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -332,7 +417,37 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		CA5B0B272F45800000EE4898 /* Build configuration list for PBXNativeTarget "SpillAuraTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CA5B0B252F45800000EE4898 /* Debug */,
+				CA5B0B262F45800000EE4898 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CA5B0B2A2F45900000EE4898 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CA5B0B2B2F45900000EE4898 /* SpillAuraCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CA5B0B2A2F45900000EE4898 /* XCLocalSwiftPackageReference "." */;
+			productName = SpillAuraCore;
+		};
+		CA5B0B2D2F45900000EE4898 /* SpillAuraCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CA5B0B2A2F45900000EE4898 /* XCLocalSwiftPackageReference "." */;
+			productName = SpillAuraCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+
 	};
 	rootObject = CA5B0B032F45794800EE4898 /* Project object */;
 }

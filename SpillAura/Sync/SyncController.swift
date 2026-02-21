@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Combine
+import SpillAuraCore
 
 @MainActor
 class SyncController: ObservableObject {

@@ -1,4 +1,5 @@
 import Foundation
+import SpillAuraCore
 import ScreenCaptureKit
 import CoreMedia
 import CoreVideo

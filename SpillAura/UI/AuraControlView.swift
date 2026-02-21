@@ -1,4 +1,5 @@
 import SwiftUI
+import SpillAuraCore
 
 /// Scrollable aura browser for the main window's Aura mode.
 /// While stopped: tapping a card updates `selectedAura` binding for the Start button.
@@ -60,7 +61,7 @@ struct AuraControlView: View {
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.accent)
+                .foregroundStyle(.tint)
                 .padding(.top, 4)
                 .help("Create a new custom aura")
             }

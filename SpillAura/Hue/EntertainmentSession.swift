@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Combine
+import SpillAuraCore
 
 /// Manages one Hue entertainment session: REST activation → DTLS → streaming → teardown.
 @MainActor

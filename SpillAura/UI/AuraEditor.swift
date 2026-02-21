@@ -1,4 +1,5 @@
 import SwiftUI
+import SpillAuraCore
 
 // MARK: - CodableColor ↔ SwiftUI.Color bridge (macOS)
 
@@ -75,7 +76,7 @@ struct AuraEditorSheet: View {
                             Label("Add Color", systemImage: "plus.circle")
                         }
                         .buttonStyle(.plain)
-                        .foregroundStyle(.accent)
+                        .foregroundStyle(.tint)
                     }
                 } header: {
                     Text("Colors")

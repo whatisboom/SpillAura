@@ -1,12 +1,13 @@
 import SwiftUI
+import SpillAuraCore
 
 struct MenuBarView: View {
     @EnvironmentObject var syncController: SyncController
     @EnvironmentObject var auraLibrary: AuraLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @State private var auraIndex: Int = 0
-    @AppStorage("selectedMode") private var mode: Mode = .aura
+    @State private var selectedAuraID: Aura.ID? = nil
+    @AppStorage("selectedMode") private var mode: Mode = .screen
 
     private enum Mode: String, CaseIterable {
         case aura = "Aura"
@@ -29,16 +30,21 @@ struct MenuBarView: View {
                 ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
-            .help("Aura: animated color cycles. Screen: match your display content.")
-            .onChange(of: mode) { _, _ in
-                // Switching mode while streaming stops the session
-                if syncController.connectionStatus != .disconnected {
-                    syncController.stop()
+            .help("Switch between Aura mode (animated color cycles) and Screen Sync (mirrors your display content in real time).")
+            .onChange(of: mode) { _, newMode in
+                guard syncController.connectionStatus == .streaming else { return }
+                switch newMode {
+                case .aura:
+                    let aura = selectedAuraID.flatMap { id in auraLibrary.auras.first(where: { $0.id == id }) }
+                             ?? auraLibrary.auras.first
+                    if let aura { syncController.startAura(aura) }
+                case .screen:
+                    syncController.startScreenSync()
                 }
             }
 
             switch mode {
-            case .aura:   auraPicker
+            case .aura:   auraControls
             case .screen: screenControls
             }
 
@@ -48,73 +54,82 @@ struct MenuBarView: View {
                 Image(systemName: "sun.min")
                     .foregroundStyle(.secondary)
                 Slider(value: $syncController.brightness, in: 0...1)
-                    .help("Overall brightness of all lights")
+                    .help("Master brightness for all lights.")
                 Image(systemName: "sun.max")
                     .foregroundStyle(.secondary)
             }
 
             Divider()
 
-            Button("Open") { openWindow(id: "main") }
-                .help("Open the main SpillAura window")
+            HStack {
+                Button {
+                    openWindow(id: "settings")
+                } label: {
+                    Image(systemName: "gear").imageScale(.large)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Open Settings to configure your bridge, screen zones, and launch behavior.")
+
+                Spacer()
+
+                Button("Open") { openWindow(id: "main") }
+                    .help("Open the main window to browse auras, preview screen zones, and access full controls.")
+            }
         }
         .padding()
         .frame(width: 260)
     }
 
-    // MARK: - Aura Picker
+    // MARK: - Aura Controls
 
     @ViewBuilder
-    private var auraPicker: some View {
+    private var auraControls: some View {
         VStack(spacing: 8) {
-            HStack {
-                Button {
-                    auraIndex = (auraIndex - 1 + auraLibrary.auras.count) % max(auraLibrary.auras.count, 1)
-                } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .disabled(auraLibrary.auras.count < 2)
-                .help("Previous aura")
-
-                Spacer()
-
-                Text(auraLibrary.auras.isEmpty ? "No Auras" : auraLibrary.auras[auraIndex].name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Button {
-                    auraIndex = (auraIndex + 1) % max(auraLibrary.auras.count, 1)
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .disabled(auraLibrary.auras.count < 2)
-                .help("Next aura")
-            }
-            .onChange(of: auraIndex) { _, newIndex in
-                if syncController.connectionStatus == .streaming, !auraLibrary.auras.isEmpty {
-                    syncController.startAura(auraLibrary.auras[newIndex])
+            Picker("Aura", selection: $selectedAuraID) {
+                ForEach(auraLibrary.auras) { aura in
+                    Text(aura.name).tag(Optional(aura.id))
                 }
             }
-            .onChange(of: syncController.activeAura?.id) { _, newID in
-                guard let newID,
-                      let idx = auraLibrary.auras.firstIndex(where: { $0.id == newID }) else { return }
-                auraIndex = idx
+            .pickerStyle(.menu)
+            .disabled(auraLibrary.auras.isEmpty)
+            .help("Choose a color animation to stream. You can swap auras while streaming — no need to stop.")
+            .onAppear {
+                selectedAuraID = syncController.activeAura?.id ?? auraLibrary.auras.first?.id
+            }
+            .onChange(of: selectedAuraID) { _, id in
+                guard let id,
+                      let aura = auraLibrary.auras.first(where: { $0.id == id }) else { return }
+                if syncController.connectionStatus == .streaming {
+                    syncController.startAura(aura)
+                }
+            }
+            .onChange(of: syncController.activeAura?.id) { _, id in
+                selectedAuraID = id
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "tortoise").foregroundStyle(.secondary)
+                Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
+                    .help("How fast the color animation cycles. Slower is ambient; faster is energetic.")
+                Image(systemName: "hare").foregroundStyle(.secondary)
             }
 
             HStack(spacing: 8) {
                 Button("Start") {
-                    guard !auraLibrary.auras.isEmpty else { return }
-                    syncController.startAura(auraLibrary.auras[auraIndex])
+                    guard let id = selectedAuraID,
+                          let aura = auraLibrary.auras.first(where: { $0.id == id })
+                                  ?? auraLibrary.auras.first else { return }
+                    syncController.startAura(aura)
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(syncController.connectionStatus != .disconnected || auraLibrary.auras.isEmpty)
-                .help("Stream the selected aura to your Hue lights")
+                .help("Begin streaming the selected aura. Your lights will start animating immediately.")
 
                 Button("Stop") { syncController.stop() }
+                    .buttonStyle(.bordered)
                     .disabled(syncController.connectionStatus == .disconnected)
-                    .help("Stop the active streaming session")
+                    .help("Stop streaming. Your lights will return to their previous state.")
             }
         }
     }
@@ -124,22 +139,24 @@ struct MenuBarView: View {
     @ViewBuilder
     private var screenControls: some View {
         VStack(spacing: 8) {
-            Picker("", selection: $syncController.responsiveness) {
+            Picker("Responsiveness", selection: $syncController.responsiveness) {
                 ForEach(SyncResponsiveness.allCases) { preset in
                     Text(preset.label).tag(preset)
                 }
             }
-            .pickerStyle(.segmented)
-            .help("How quickly the lights react to screen changes. Instant tracks fast motion; Cinematic gives smooth transitions.")
+            .pickerStyle(.menu)
+            .help("How quickly lights react to screen changes. Instant is best for gaming and fast content; Cinematic gives smooth, lag-tolerant transitions.")
 
             HStack(spacing: 8) {
                 Button("Start") { syncController.startScreenSync() }
+                    .buttonStyle(.borderedProminent)
                     .disabled(syncController.connectionStatus != .disconnected)
-                    .help("Stream screen colors to your Hue lights")
+                    .help("Start capturing your display and matching your lights to on-screen colors.")
 
                 Button("Stop") { syncController.stop() }
+                    .buttonStyle(.bordered)
                     .disabled(syncController.connectionStatus == .disconnected)
-                    .help("Stop the active streaming session")
+                    .help("Stop streaming. Your lights will return to their previous state.")
             }
         }
     }
@@ -153,6 +170,7 @@ struct MenuBarView: View {
             Label("Disconnected", systemImage: "circle")
                 .foregroundStyle(.secondary)
                 .font(.caption)
+                .help("Not connected — press Start to begin streaming.")
 
         case .connecting:
             HStack(spacing: 6) {
@@ -161,17 +179,20 @@ struct MenuBarView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .help("Connecting to your Hue bridge…")
 
         case .streaming:
             Label("Streaming", systemImage: "circle.fill")
                 .foregroundStyle(.green)
                 .font(.caption)
+                .help("Streaming to your lights.")
 
         case .error(let message):
             Label(message, systemImage: "exclamationmark.circle.fill")
                 .foregroundStyle(.red)
                 .font(.caption)
                 .lineLimit(3)
+                .help("An error occurred. Check your bridge connection and try again.")
         }
     }
 }

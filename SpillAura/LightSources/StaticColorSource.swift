@@ -1,4 +1,5 @@
 import Foundation
+import SpillAuraCore
 
 /// A `LightSource` that sends the same RGB color to every channel.
 struct StaticColorSource: LightSource {

@@ -1,11 +1,12 @@
 import SwiftUI
+import SpillAuraCore
 
 struct MainWindow: View {
     @EnvironmentObject var syncController: SyncController
     @EnvironmentObject var auraLibrary: AuraLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @AppStorage("selectedMode") private var mode: Mode = .aura
+    @AppStorage("selectedMode") private var mode: Mode = .screen
     @State private var selectedAura: Aura? = nil
 
     private enum Mode: String, CaseIterable {
@@ -50,10 +51,15 @@ struct MainWindow: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 160)
-            .help("Aura: animated color cycles. Screen: match your display content.")
-            .onChange(of: mode) { _, _ in
-                if syncController.connectionStatus != .disconnected {
-                    syncController.stop()
+            .help("Switch between Aura mode (animated color cycles) and Screen Sync (mirrors your display content in real time).")
+            .onChange(of: mode) { _, newMode in
+                guard syncController.connectionStatus == .streaming else { return }
+                switch newMode {
+                case .aura:
+                    let aura = selectedAura ?? auraLibrary.auras.first
+                    if let aura { syncController.startAura(aura) }
+                case .screen:
+                    syncController.startScreenSync()
                 }
             }
 
@@ -70,23 +76,27 @@ struct MainWindow: View {
             Label("Disconnected", systemImage: "circle")
                 .foregroundStyle(.secondary)
                 .font(.caption)
+                .help("Not connected — press Start to begin streaming.")
 
         case .connecting:
             HStack(spacing: 5) {
                 ProgressView().scaleEffect(0.55)
                 Text("Connecting…").font(.caption).foregroundStyle(.secondary)
             }
+            .help("Connecting to your Hue bridge…")
 
         case .streaming:
             Label("Streaming", systemImage: "circle.fill")
                 .foregroundStyle(.green)
                 .font(.caption)
+                .help("Streaming to your lights.")
 
         case .error(let msg):
             Label(msg, systemImage: "exclamationmark.circle.fill")
                 .foregroundStyle(.red)
                 .font(.caption)
                 .lineLimit(2)
+                .help("An error occurred. Check your bridge connection and try again.")
         }
     }
 
@@ -109,7 +119,7 @@ struct MainWindow: View {
             if mode == .aura {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
                 Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
-                    .help("Animation speed of the current aura (0.25× to 1.5×)")
+                    .help("How fast the color animation cycles. Slower is ambient; faster is energetic.")
                 Image(systemName: "hare").foregroundStyle(.secondary)
 
                 Divider().frame(height: 16)
@@ -117,7 +127,7 @@ struct MainWindow: View {
 
             Image(systemName: "sun.min").foregroundStyle(.secondary)
             Slider(value: $syncController.brightness, in: 0...1)
-                .help("Overall brightness of all lights")
+                .help("Master brightness for all lights.")
             Image(systemName: "sun.max").foregroundStyle(.secondary)
         }
     }
@@ -133,7 +143,7 @@ struct MainWindow: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("Open Settings")
+            .help("Open Settings to configure your bridge, screen zones, and launch behavior.")
 
             Spacer()
 
@@ -150,11 +160,11 @@ struct MainWindow: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(mode == .aura && auraLibrary.auras.isEmpty)
-                .help("Begin streaming to your Hue lights")
+                .help("Begin streaming to your lights.")
             } else {
                 Button("Stop") { syncController.stop() }
                     .buttonStyle(.bordered)
-                    .help("Stop the active streaming session")
+                    .help("Stop streaming. Your lights will return to their previous state.")
             }
         }
     }
