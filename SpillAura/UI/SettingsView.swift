@@ -22,9 +22,9 @@ struct SettingsView: View {
                             HStack {
                                 Label(creds.bridgeIP, systemImage: "network")
                                 Spacer()
-                                Button("Re-pair") { showPairingFlow = true }
+                                Button("Change Bridge") { showPairingFlow = true }
                                     .buttonStyle(.borderless)
-                                    .help("Pair with a different Hue bridge or re-authenticate")
+                                    .help("Switch to a different bridge or reconnect to the current one. Your zone configuration will be preserved.")
                             }
                             Divider()
                             EntertainmentGroupPicker(credentials: creds, auth: auth)
@@ -88,7 +88,7 @@ private struct ScreenSyncSettingsSection: View {
                             }
                         }
                         .frame(maxWidth: 200)
-                        .help("Which monitor to sample for screen sync colors")
+                        .help("Which display SpillAura captures for Screen Sync.")
                     }
                     Divider()
                 }
@@ -96,11 +96,11 @@ private struct ScreenSyncSettingsSection: View {
                 // Layout presets
                 HStack(spacing: 8) {
                     Button("2-Bar (L/R)")    { applyPreset(.twoBar) }
-                        .help("Assign left and right triangles — for two Play bars beside your monitor")
+                        .help("Assign left and right zones — for two Play bars positioned beside your monitor.")
                     Button("3-Bar (T/L/R)")  { applyPreset(.threeBar) }
-                        .help("Assign top, left, and right triangles")
+                        .help("Assign top, left, and right zones — for three Play bars across the top and sides of your monitor.")
                     Button("4-Bar Surround") { applyPreset(.fourBar) }
-                        .help("Assign top, right, bottom, and left triangles for full surround setups")
+                        .help("Assign top, right, bottom, and left zones — for a full surround light bar setup.")
                 }
                 .buttonStyle(.bordered)
 
@@ -121,12 +121,12 @@ private struct ScreenSyncSettingsSection: View {
                                 }
                             }
                             .frame(maxWidth: 160)
-                            .help("Screen region this light samples for color")
+                            .help("Which screen region this channel samples. Match this to where the physical light bar sits relative to your monitor.")
                             Button { startIdentify(channel: channelID) } label: {
                                 Image(systemName: "lightbulb")
                             }
                             .buttonStyle(.borderless)
-                            .help("Pulse this light")
+                            .help("Flash this light briefly to identify which physical fixture corresponds to this channel.")
                         }
                     }
                 }
@@ -255,6 +255,7 @@ private struct BridgePairingSection: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .help("Select this bridge to pair with. SpillAura will connect to this IP address.")
             }
 
             HStack {
@@ -349,7 +350,7 @@ private struct AutoStartRow: View {
 
     var body: some View {
         Toggle("Start streaming automatically on launch", isOn: $autoStartOnLaunch)
-            .help("Resumes the last active mode (Aura or Screen Sync) when the app launches")
+            .help("Automatically resume the last active mode when SpillAura launches — no need to press Start manually.")
     }
 }
 
@@ -360,7 +361,7 @@ private struct LaunchHiddenRow: View {
 
     var body: some View {
         Toggle("Launch with window hidden", isOn: $launchWindowHidden)
-            .help("Open SpillAura to the menu bar only — no window appears on launch")
+            .help("Launch SpillAura silently to the menu bar without showing the main window.")
     }
 }
 
@@ -371,6 +372,7 @@ private struct LoginItemRow: View {
 
     var body: some View {
         Toggle("Launch at login", isOn: $isEnabled)
+            .help("Start SpillAura automatically when you log in, so it's always ready in the menu bar.")
             .onChange(of: isEnabled) { _, enabled in
                 do {
                     if enabled {

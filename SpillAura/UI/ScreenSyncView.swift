@@ -19,7 +19,7 @@ struct ScreenSyncView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .help("How quickly the lights react to screen changes. Instant tracks fast motion; Cinematic gives smooth transitions.")
+                .help("How quickly lights react to screen changes. Instant is best for gaming; Cinematic gives smooth, lag-tolerant transitions.")
             }
 
             // Live preview canvas
@@ -61,9 +61,10 @@ struct ScreenSyncView: View {
             }
             .aspectRatio(16.0 / 9.0, contentMode: .fit)
             .frame(maxWidth: 480)
+            .help("Live preview of your screen zones. Colors update in real time while streaming.")
 
             if syncController.connectionStatus != .streaming {
-                Text("Start Screen Sync from the MenuBar to see live colors.")
+                Text("Start Screen Sync to see live colors.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

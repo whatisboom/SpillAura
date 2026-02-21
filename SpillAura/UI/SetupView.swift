@@ -22,7 +22,7 @@ struct SetupView: View {
                     .bold()
 
                 // Step 1: Find bridge
-                GroupBox("Step 1: Find Your Bridge") {
+                GroupBox("Find Your Bridge") {
                     VStack(alignment: .leading, spacing: 8) {
                         if discovery.isSearching {
                             HStack {
@@ -43,6 +43,7 @@ struct SetupView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .help("Select this bridge to pair with. SpillAura will connect to this IP address.")
                         }
 
                         Divider()
@@ -50,28 +51,27 @@ struct SetupView: View {
                         HStack {
                             TextField("Manual IP (e.g. 192.168.1.100)", text: $manualIP)
                                 .textFieldStyle(.roundedBorder)
-                                .help("Enter the bridge IP address manually if it wasn't found by discovery")
+                                .help("Enter your bridge IP manually if it wasn't found automatically.")
                             Button("Use") {
                                 selectedBridgeIP = manualIP
                             }
                             .disabled(manualIP.isEmpty)
-                            .help("Use this IP address as the bridge address")
                         }
 
                         Button(discovery.isSearching ? "Searching…" : "Search Again") {
                             discovery.startDiscovery()
                         }
                         .disabled(discovery.isSearching)
-                        .help("Scan the local network for Hue bridges via mDNS")
+                        .help("Search for nearby Hue bridges.")
                     }
                     .padding(4)
                 }
 
                 // Step 2: Pair
-                GroupBox("Step 2: Pair") {
+                GroupBox("Pair") {
                     VStack(alignment: .leading, spacing: 8) {
                         if selectedBridgeIP.isEmpty {
-                            Text("Select a bridge above first.")
+                            Text("Choose a bridge above to get started.")
                                 .foregroundStyle(.secondary)
                         } else {
                             Text("Bridge: \(selectedBridgeIP)")
@@ -82,7 +82,7 @@ struct SetupView: View {
                                 Button("Start Pairing") {
                                     pairingState = .waitingForButton
                                 }
-                                .help("Begin the pairing process — you'll be prompted to press the button on your bridge")
+                                .help("Start the pairing process.")
                             case .waitingForButton:
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Press the physical button on your Hue bridge now, then tap Pair.")
@@ -90,10 +90,11 @@ struct SetupView: View {
                                         Button("Pair") {
                                             Task { await pairWithBridge() }
                                         }
-                                        .help("Complete pairing with the bridge")
+                                        .help("Complete pairing.")
                                         Button("Cancel") { pairingState = .idle }
                                             .buttonStyle(.plain)
                                             .foregroundStyle(.secondary)
+                                            .help("Cancel pairing and return to the idle state.")
                                     }
                                 }
                             case .pairing:
@@ -105,7 +106,7 @@ struct SetupView: View {
                                 if let creds = credentials {
                                     Label("Paired successfully!", systemImage: "checkmark.circle.fill")
                                         .foregroundStyle(.green)
-                                    Text("Username: \(creds.username.prefix(12))…")
+                                    Text("Connected to \(creds.bridgeIP)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -123,7 +124,7 @@ struct SetupView: View {
 
                 // Step 3: Select entertainment group (appears after pairing)
                 if pairingState == .success, let creds = credentials {
-                    GroupBox("Step 3: Select Entertainment Group") {
+                    GroupBox("Select Lighting Group") {
                         EntertainmentGroupPicker(credentials: creds, auth: auth)
                             .padding(4)
                     }
@@ -181,13 +182,13 @@ struct EntertainmentGroupPicker: View {
             if isLoading {
                 HStack {
                     ProgressView().scaleEffect(0.7)
-                    Text("Fetching entertainment groups…")
+                    Text("Loading lighting groups…")
                         .foregroundStyle(.secondary)
                 }
             } else if let error = errorMessage {
                 Text(error).foregroundStyle(.red)
             } else if groups.isEmpty {
-                Text("No entertainment groups found. Create one in the Hue app.")
+                Text("No lighting groups found. Set one up in the Hue app first.")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(groups) { group in
@@ -200,12 +201,13 @@ struct EntertainmentGroupPicker: View {
                             Image(systemName: selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
                             VStack(alignment: .leading) {
                                 Text(group.name).bold()
-                                Text("\(group.channelCount) channels · ID: \(group.id.prefix(8))…")
+                                Text("\(group.channelCount) channels")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
                     }
                     .buttonStyle(.plain)
+                    .help("Select this lighting group to control these channels.")
                 }
             }
         }
