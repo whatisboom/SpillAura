@@ -160,9 +160,12 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 
             guard sumW > 0 else { result.append(smoothed[i]); continue }
 
-            let rawR = Float(sqrt(sumR / sumW))   // sqrt(mean of squares) = RMS
-            let rawG = Float(sqrt(sumG / sumW))
-            let rawB = Float(sqrt(sumB / sumW))
+            // RMS (sqrt of mean-of-squares) + gamma boost (^0.6).
+            // Combined exponent of 0.3 aggressively lifts dim averages:
+            //   rms 0.2 → 0.34,  rms 0.5 → 0.62,  rms 1.0 → 1.0
+            let rawR = Float(pow(sqrt(sumR / sumW), 0.6))
+            let rawG = Float(pow(sqrt(sumG / sumW), 0.6))
+            let rawB = Float(pow(sqrt(sumB / sumW), 0.6))
 
             let prev = smoothed[i]
             smoothed[i] = (
