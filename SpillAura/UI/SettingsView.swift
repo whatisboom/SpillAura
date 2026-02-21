@@ -75,7 +75,9 @@ private struct ScreenSyncSettingsSection: View {
 
                 // Display picker — only visible with multiple monitors
                 if availableDisplays.count > 1 {
-                    LabeledContent("Source Display") {
+                    HStack {
+                        Text("Source Display")
+                        Spacer()
                         Picker("", selection: Binding(
                             get: { syncController.zoneConfig.displayID },
                             set: { newVal in
@@ -87,22 +89,26 @@ private struct ScreenSyncSettingsSection: View {
                                 Text(d.name).tag(d.id)
                             }
                         }
-                        .frame(maxWidth: 200)
+                        .fixedSize()
                         .help("Which display SpillAura captures for Screen Sync.")
                     }
                     Divider()
                 }
 
                 // Zone layout
-                LabeledContent("Zone Layout") {
+                HStack {
+                    Text("Zone Layout")
+                    Spacer()
                     Button("Reconfigure\u{2026}") { showingZoneSheet = true }
-                        .buttonStyle(.borderless)
+                        .buttonStyle(.bordered)
                 }
 
                 Divider()
 
                 // Edge Bias slider
-                LabeledContent("Edge Bias") {
+                HStack {
+                    Text("Edge Bias")
+                    Spacer()
                     HStack(spacing: 6) {
                         Text("Uniform").font(.caption).foregroundStyle(.secondary)
                         Slider(

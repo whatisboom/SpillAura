@@ -137,13 +137,18 @@ struct MenuBarView: View {
     @ViewBuilder
     private var screenControls: some View {
         VStack(spacing: 8) {
-            Picker("Responsiveness", selection: $syncController.responsiveness) {
-                ForEach(SyncResponsiveness.allCases) { preset in
-                    Text(preset.label).tag(preset)
+            HStack {
+                Text("Responsiveness")
+                Spacer()
+                Picker("", selection: $syncController.responsiveness) {
+                    ForEach(SyncResponsiveness.allCases) { preset in
+                        Text(preset.label).tag(preset)
+                    }
                 }
+                .pickerStyle(.menu)
+                .fixedSize()
+                .help("How quickly lights react to screen changes. Instant is best for gaming and fast content; Cinematic gives smooth, lag-tolerant transitions.")
             }
-            .pickerStyle(.menu)
-            .help("How quickly lights react to screen changes. Instant is best for gaming and fast content; Cinematic gives smooth, lag-tolerant transitions.")
 
             HStack(spacing: 8) {
                 Button("Start") { syncController.startScreenSync() }
