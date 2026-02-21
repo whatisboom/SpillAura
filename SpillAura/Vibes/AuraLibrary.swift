@@ -40,10 +40,34 @@ final class AuraLibrary: ObservableObject {
         writeCustom(custom)
     }
 
+    // MARK: - Builtin helpers
+
+    func isBuiltin(_ aura: Aura) -> Bool {
+        BuiltinAuras.all.contains { $0.id == aura.id }
+    }
+
+    /// Removes any custom override for a built-in aura, reverting it to its default. No-op for custom auras.
+    func reset(_ aura: Aura) {
+        guard isBuiltin(aura) else { return }
+        var custom = loadCustom()
+        custom.removeAll { $0.id == aura.id }
+        writeCustom(custom)
+    }
+
     // MARK: - Private
 
     private func load() {
-        auras = BuiltinAuras.all + loadCustom()
+        let custom = loadCustom()
+        let customByID = Dictionary(custom.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+
+        // For each built-in, use the custom override if present; otherwise use the built-in
+        let merged = BuiltinAuras.all.map { builtin in
+            customByID[builtin.id] ?? builtin
+        }
+        // Append purely custom auras (new UUIDs not matching any built-in)
+        let builtinIDs = Set(BuiltinAuras.all.map(\.id))
+        let customOnly = custom.filter { !builtinIDs.contains($0.id) }
+        auras = merged + customOnly
     }
 
     private func loadCustom() -> [Aura] {
@@ -58,6 +82,6 @@ final class AuraLibrary: ObservableObject {
         if let data = try? JSONEncoder().encode(custom) {
             try? data.write(to: fileURL)
         }
-        auras = BuiltinAuras.all + custom
+        load()
     }
 }

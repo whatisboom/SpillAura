@@ -8,6 +8,9 @@ struct AuraControlView: View {
     @EnvironmentObject var auraLibrary: AuraLibrary
     @Binding var selectedAura: Aura?
 
+    @State private var editingAura: Aura? = nil
+    @State private var isCreating = false
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 6) {
@@ -25,13 +28,63 @@ struct AuraControlView: View {
                             selectedAura = aura
                         }
                     }
+                    .contextMenu {
+                        Button("Edit") {
+                            editingAura = aura
+                        }
+
+                        if auraLibrary.isBuiltin(aura) {
+                            Button("Reset to Default") {
+                                auraLibrary.reset(aura)
+                                // If the streaming aura was reset, hot-swap the reverted version
+                                if syncController.connectionStatus == .streaming,
+                                   syncController.activeAura?.id == aura.id,
+                                   let reverted = auraLibrary.auras.first(where: { $0.id == aura.id }) {
+                                    syncController.startAura(reverted)
+                                }
+                            }
+                        } else {
+                            Button("Delete", role: .destructive) {
+                                auraLibrary.delete(aura)
+                            }
+                        }
+                    }
                 }
+
+                // "New Aura" footer button
+                Button {
+                    isCreating = true
+                } label: {
+                    Label("New Aura", systemImage: "plus.circle")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.accent)
+                .padding(.top, 4)
+                .help("Create a new custom aura")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
         .onAppear {
             if selectedAura == nil { selectedAura = auraLibrary.auras.first }
+        }
+        .sheet(item: $editingAura) { aura in
+            AuraEditorSheet(aura: aura)
+                .environmentObject(auraLibrary)
+                .onDisappear {
+                    // Hot-swap if this aura is currently streaming
+                    if syncController.connectionStatus == .streaming,
+                       syncController.activeAura?.id == aura.id,
+                       let updated = auraLibrary.auras.first(where: { $0.id == aura.id }) {
+                        syncController.startAura(updated)
+                    }
+                }
+        }
+        .sheet(isPresented: $isCreating) {
+            AuraEditorSheet()
+                .environmentObject(auraLibrary)
         }
     }
 }
@@ -63,6 +116,7 @@ private struct AuraCard: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
+        .help("Select this aura. While streaming, swapping takes effect immediately — no need to stop.")
     }
 
     private var swatchStrip: some View {
@@ -74,6 +128,6 @@ private struct AuraCard: View {
         }
         .frame(width: 52, height: 32)
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .help("Color palette for this aura. These colors cycle or bounce through your lights during playback.")
     }
-
 }
