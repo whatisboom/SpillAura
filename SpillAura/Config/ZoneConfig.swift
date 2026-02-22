@@ -151,7 +151,11 @@ struct ZoneConfig: Codable {
     }
 
     func save() {
-        UserDefaults.standard.set(try! JSONEncoder().encode(self), forKey: StorageKey.zoneConfig)
+        guard let data = try? JSONEncoder().encode(self) else {
+            print("[ZoneConfig] Failed to encode config, skipping save")
+            return
+        }
+        UserDefaults.standard.set(data, forKey: StorageKey.zoneConfig)
     }
 }
 

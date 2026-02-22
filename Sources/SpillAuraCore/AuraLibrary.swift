@@ -79,8 +79,11 @@ public final class AuraLibrary: ObservableObject {
     }
 
     private func writeCustom(_ custom: [Aura]) {
-        if let data = try? JSONEncoder().encode(custom) {
-            try? data.write(to: fileURL)
+        do {
+            let data = try JSONEncoder().encode(custom)
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            print("[AuraLibrary] Failed to write custom auras: \(error)")
         }
         load()
     }
