@@ -198,7 +198,7 @@ struct Zone: Codable {
 struct ZoneConfig: Codable {
     var displayID: UInt32   // 0 = CGMainDisplayID()
     var zones: [Zone]
-    var edgeBias: Double    // 0 (uniform) … 1 (edge-dominated), default 0.5
+    var edgeBias: Double    // 0 (uniform) … 1 (edge-dominated), default 0.0
 }
 ```
 
@@ -306,7 +306,7 @@ SpillAura/
 │   ├── MainWindow.swift              # Primary control surface
 │   ├── AuraControlView.swift         # Scrollable aura browser with cards
 │   ├── AuraEditor.swift              # Create/edit custom auras (sheet)
-│   ├── ScreenSyncView.swift          # Live zone preview + responsiveness
+│   ├── ScreenSyncView.swift          # Live zone preview + responsiveness + edge bias
 │   ├── SettingsView.swift            # Bridge, screen sync config, app prefs, reconfigure sheet
 │   ├── SetupView.swift               # First-run wizard (discover → pair → group → zones)
 │   ├── ZoneSetupStep.swift           # Shared: preset picker + per-channel region pickers
