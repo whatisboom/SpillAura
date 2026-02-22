@@ -57,6 +57,7 @@ struct ZoneSetupStep: View {
                         .buttonStyle(.borderless)
                         .foregroundStyle(channelColor.swiftUIColor)
                         .help("Light this channel in \(channelColor.name) to identify it.")
+                        .accessibilityLabel("Identify \(channelColor.name) channel")
                     }
                 }
             }

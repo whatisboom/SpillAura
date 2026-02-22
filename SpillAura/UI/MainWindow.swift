@@ -107,6 +107,7 @@ struct MainWindow: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("Open Settings to configure your bridge, screen zones, and launch behavior.")
+            .accessibilityLabel("Settings")
 
             Spacer()
 
