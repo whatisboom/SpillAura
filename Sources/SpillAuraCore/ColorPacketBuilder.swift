@@ -12,36 +12,12 @@ public enum ColorPacketBuilder {
         r: Float,
         g: Float,
         b: Float,
-        channels: [UInt16],
+        channels: [UInt8],
         sequence: UInt8,
         groupID: String
     ) -> Data {
-        var data = Data()
-
-        // Header (16 bytes)
-        data.append(contentsOf: [0x48, 0x75, 0x65, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6D])
-        data.append(contentsOf: [0x02, 0x00])
-        data.append(sequence)
-        data.append(contentsOf: [0x00, 0x00])
-        data.append(0x00) // RGB colorspace
-        data.append(0x00) // reserved
-
-        // Entertainment area UUID (36 bytes ASCII)
-        data.append(contentsOf: groupID.utf8)
-
-        // Channel entries (7 bytes each)
-        let rScaled = UInt16(min(max(r, 0.0), 1.0) * 65535)
-        let gScaled = UInt16(min(max(g, 0.0), 1.0) * 65535)
-        let bScaled = UInt16(min(max(b, 0.0), 1.0) * 65535)
-
-        for channelID in channels {
-            data.append(UInt8(channelID & 0xFF))
-            data.append(UInt8(rScaled >> 8)); data.append(UInt8(rScaled & 0xFF))
-            data.append(UInt8(gScaled >> 8)); data.append(UInt8(gScaled & 0xFF))
-            data.append(UInt8(bScaled >> 8)); data.append(UInt8(bScaled & 0xFF))
-        }
-
-        return data
+        let entries = channels.map { (channel: $0, r: r, g: g, b: b) }
+        return buildPacket(channelColors: entries, sequence: sequence, groupID: groupID)
     }
 
     /// Builds an Entertainment API v2 packet where each channel can have a distinct RGB color.
