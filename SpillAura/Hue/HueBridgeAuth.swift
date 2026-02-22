@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-struct BridgeCredentials {
+struct BridgeCredentials: Codable {
     let bridgeIP: String
     let username: String    // used as REST API header: hue-application-key
     let clientKey: String   // hex string, PSK for DTLS in M2
@@ -29,7 +29,9 @@ class HueBridgeAuth {
     // MARK: - Pairing
 
     func pair(bridgeIP: String) async throws -> BridgeCredentials {
-        let url = URL(string: "http://\(bridgeIP)/api")!
+        guard let url = URL(string: "http://\(bridgeIP)/api") else {
+            throw AuthError.unexpectedResponse("Invalid bridge IP: \(bridgeIP)")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -78,8 +80,7 @@ class HueBridgeAuth {
     // MARK: - Keychain
 
     func saveToKeychain(_ credentials: BridgeCredentials) throws {
-        let value = "\(credentials.bridgeIP)|\(credentials.username)|\(credentials.clientKey)"
-        let data = value.data(using: .utf8)!
+        let data = try JSONEncoder().encode(credentials)
 
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -107,9 +108,15 @@ class HueBridgeAuth {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess,
-              let data = result as? Data,
-              let value = String(data: data, encoding: .utf8) else { return nil }
+              let data = result as? Data else { return nil }
 
+        // Try JSON format first (new), then fall back to legacy pipe-separated format
+        if let credentials = try? JSONDecoder().decode(BridgeCredentials.self, from: data) {
+            return credentials
+        }
+
+        // Legacy format: "bridgeIP|username|clientKey"
+        guard let value = String(data: data, encoding: .utf8) else { return nil }
         let parts = value.components(separatedBy: "|")
         guard parts.count == 3 else { return nil }
         return BridgeCredentials(bridgeIP: parts[0], username: parts[1], clientKey: parts[2])
@@ -124,7 +131,9 @@ class HueBridgeAuth {
     }
 
     func fetchEntertainmentGroups(credentials: BridgeCredentials) async throws -> [EntertainmentGroup] {
-        let url = URL(string: "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration")!
+        guard let url = URL(string: "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration") else {
+            throw AuthError.unexpectedResponse("Invalid bridge IP: \(credentials.bridgeIP)")
+        }
         var request = URLRequest(url: url)
         request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
 
