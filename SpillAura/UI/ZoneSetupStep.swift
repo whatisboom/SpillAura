@@ -45,7 +45,7 @@ struct ZoneSetupStep: View {
                             Text(region.label).tag(region)
                         }
                     }
-                    .frame(maxWidth: 160)
+                    .frame(maxWidth: UIConstants.Size.regionPickerMaxWidth)
                     .help("Which screen region this channel samples.")
 
                     if let onIdentify {
@@ -63,7 +63,7 @@ struct ZoneSetupStep: View {
 
             // Zone preview
             ZonePreviewCanvas(zones: config.zones, showLabels: true)
-                .frame(maxWidth: 400)
+                .frame(maxWidth: UIConstants.Size.zonePreviewMaxWidth)
         }
     }
 

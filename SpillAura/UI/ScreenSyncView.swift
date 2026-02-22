@@ -33,7 +33,7 @@ struct ScreenSyncView: View {
                 zones: syncController.zoneConfig.zones,
                 liveColors: syncController.connectionStatus == .streaming ? syncController.previewColors : []
             )
-            .frame(maxWidth: 480)
+            .frame(maxWidth: UIConstants.Size.zonePreviewMaxWidth)
 
             if syncController.connectionStatus != .streaming {
                 Text("Start Screen Sync to see live colors.")

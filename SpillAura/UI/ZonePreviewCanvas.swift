@@ -50,9 +50,9 @@ struct ZonePreviewCanvas: View {
                     }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.preview))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.preview)
                     .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
             )
         }

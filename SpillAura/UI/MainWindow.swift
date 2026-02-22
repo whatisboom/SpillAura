@@ -44,7 +44,7 @@ struct MainWindow: View {
                 ForEach(SyncMode.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 160)
+            .frame(maxWidth: UIConstants.Size.modePickerMaxWidth)
             .help("Switch between Aura mode (animated color cycles) and Screen Sync (mirrors your display content in real time).")
             .onChange(of: syncController.selectedMode) { _, newMode in
                 guard syncController.connectionStatus == .streaming else { return }

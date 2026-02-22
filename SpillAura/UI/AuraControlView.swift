@@ -109,13 +109,13 @@ private struct AuraCard: View {
             ? Color.accentColor.opacity(0.12)
             : Color(nsColor: .controlBackgroundColor))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: UIConstants.CornerRadius.card)
                 .stroke(
                     isSelected ? Color.accentColor : Color.secondary.opacity(0.2),
                     lineWidth: isSelected ? 1.5 : 0.5
                 )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.card))
         .contentShape(Rectangle())
         .help("Select this aura. While streaming, swapping takes effect immediately — no need to stop.")
     }
@@ -127,8 +127,8 @@ private struct AuraCard: View {
                     .fill(Color(red: c.red, green: c.green, blue: c.blue))
             }
         }
-        .frame(width: 52, height: 32)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .frame(width: UIConstants.Size.swatchStripWidth, height: UIConstants.Size.swatchStripHeight)
+        .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.swatch))
         .help("Color palette for this aura. These colors cycle or bounce through your lights during playback.")
     }
 }

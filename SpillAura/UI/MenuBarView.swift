@@ -76,7 +76,7 @@ struct MenuBarView: View {
             }
         }
         .padding()
-        .frame(width: 260)
+        .frame(width: UIConstants.Size.menuBarWidth)
     }
 
     // MARK: - Aura Controls
