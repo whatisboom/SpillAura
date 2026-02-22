@@ -73,6 +73,12 @@ jobs:
 
           echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
 
+      - name: Sign DMG
+        run: |
+          codesign --force --sign "Developer ID Application" \
+            --keychain "$KEYCHAIN_NAME" \
+            "$DMG_NAME"
+
       - name: Notarize DMG
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
