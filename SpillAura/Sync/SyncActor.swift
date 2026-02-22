@@ -11,6 +11,8 @@ actor SyncActor {
     private var speedMultiplier: Double = 1.0
     private var pulsedIdentify: [ColorEntry]?
     private var streamingTask: Task<Void, Never>?
+    private var accumulatedTime: TimeInterval = 0
+    private var lastTickTime: TimeInterval = 0
 
     func setSource(_ source: (any LightSource)?)  { self.source = source }
     func setSender(_ sender: HueSender?)          { self.sender = sender }
@@ -20,17 +22,21 @@ actor SyncActor {
 
     func startStreaming(
         channelCount: Int,
-        startTime: TimeInterval,
         onPreview: @escaping @Sendable ([ColorEntry]) -> Void
     ) {
         streamingTask?.cancel()
+        accumulatedTime = 0
+        lastTickTime = Date.timeIntervalSinceReferenceDate
         streamingTask = Task { [self] in   // inherits actor isolation
             var tick: UInt8 = 0
             while !Task.isCancelled {
-                let elapsed = Date.timeIntervalSinceReferenceDate - startTime
+                let now = Date.timeIntervalSinceReferenceDate
+                let delta = now - lastTickTime
+                lastTickTime = now
+                accumulatedTime += delta * speedMultiplier
                 if let src = source, let sndr = sender {
                     var colors = src.nextColors(channelCount: channelCount,
-                                                at: elapsed * speedMultiplier)
+                                                at: accumulatedTime)
                     if let ids = pulsedIdentify {
                         for id in ids {
                             if let idx = colors.firstIndex(where: { $0.channel == id.channel }) {

@@ -320,10 +320,9 @@ class SyncController: ObservableObject {
         case .streaming:
             connectionStatus = .streaming
             guard let sender = session?.sender else { return }
-            let startTime = Date.timeIntervalSinceReferenceDate
             Task {
                 await syncActor.setSender(sender)
-                await syncActor.startStreaming(channelCount: channelCount, startTime: startTime) { [weak self] colors in
+                await syncActor.startStreaming(channelCount: channelCount) { [weak self] colors in
                     Task { @MainActor [weak self] in self?.previewColors = colors }
                 }
             }
