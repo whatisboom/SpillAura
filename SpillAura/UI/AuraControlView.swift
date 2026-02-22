@@ -130,5 +130,6 @@ private struct AuraCard: View {
         .frame(width: UIConstants.Size.swatchStripWidth, height: UIConstants.Size.swatchStripHeight)
         .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.swatch))
         .help("Color palette for this aura. These colors cycle or bounce through your lights during playback.")
+        .accessibilityLabel("\(aura.palette.count) colors")
     }
 }
