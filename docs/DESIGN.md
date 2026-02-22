@@ -27,7 +27,7 @@ A macOS app that controls Philips Hue Play lights with rock-solid reliability an
 | **M2** | DTLS 1.2 PSK connection, entertainment session state machine, color streaming | Done |
 | **M3** | Aura system — static colors, cycling/bouncing palettes, AuraLibrary, MenuBar UI | Done |
 | **M4** | Screen sync — ScreenCaptureKit, zone regions, weighted edge average, EMA smoothing | Done |
-| **M5** | Polish — icon toggles, notarization, distribution | Next |
+| **M5** | Polish — icon toggles, UI consistency, accessibility, notarization | In Progress |
 | **M6** | Audio reactivity — system audio capture, frequency/beat-mapped lighting | Future |
 
 ---
@@ -263,7 +263,7 @@ struct ZoneConfig: Codable {
 
 - **Bridge:** paired IP, "Change Bridge" button, entertainment group picker
 - **Screen Sync:** display picker (multi-monitor), "Reconfigure…" button → zone sheet, edge bias slider
-- **App:** launch at login, auto-start streaming, launch with window hidden
+- **App:** launch at login, auto-start streaming, launch with window hidden, show dock icon, show menu bar icon
 
 ### First-Run Setup Wizard (SetupView)
 
@@ -286,7 +286,7 @@ Step 1: Discover / enter bridge IP → Step 2: Press link button + pair → Step
 SpillAura/
 ├── App/
 │   ├── SpillAuraApp.swift            # @main, MenuBarExtra + WindowGroup + Settings
-│   └── AppDelegate.swift             # Launch-hidden window management
+│   └── AppDelegate.swift             # Launch-hidden, dock icon policy, ghost-state guard
 ├── Sync/
 │   ├── SyncController.swift          # @MainActor, mode switching, session lifecycle
 │   ├── SyncActor.swift               # Background 25 Hz streaming loop
@@ -306,11 +306,14 @@ SpillAura/
 │   ├── MainWindow.swift              # Primary control surface
 │   ├── AuraControlView.swift         # Scrollable aura browser with cards
 │   ├── AuraEditor.swift              # Create/edit custom auras (sheet)
-│   ├── ScreenSyncView.swift          # Live zone preview + responsiveness + edge bias
+│   ├── ScreenSyncView.swift          # Live zone preview + responsiveness
 │   ├── SettingsView.swift            # Bridge, screen sync config, app prefs, reconfigure sheet
 │   ├── SetupView.swift               # First-run wizard (discover → pair → group → zones)
 │   ├── ZoneSetupStep.swift           # Shared: preset picker + per-channel region pickers
-│   └── ZonePreviewCanvas.swift       # Shared: triangular zone preview with live colors
+│   ├── ZonePreviewCanvas.swift       # Shared: triangular zone preview with live colors
+│   ├── StatusBadge.swift             # Shared: connection status indicator
+│   ├── EdgeBiasSlider.swift          # Shared: uniform/edge bias slider
+│   └── UIConstants.swift             # Shared: spacing, sizing, scale constants
 └── Vibes/                            # (Legacy group name — contains SpillAuraCore refs)
 
 Sources/SpillAuraCore/                # Swift package — shared logic + tests
@@ -341,10 +344,15 @@ No App Sandbox entitlements required.
 
 Priority: ship a distributable v1.0.
 
-- **Dock icon toggle:** Wire `AppSettings.showDockIcon` to `NSApp.setActivationPolicy(.accessory / .regular)`
-- **MenuBar icon toggle:** Wire `AppSettings.showMenuBarIcon` (guard: can't hide both)
+**Done:**
+- **Dock icon toggle:** `DockIconRow` in Settings → `NSApp.setActivationPolicy(.accessory / .regular)`, applied on launch via AppDelegate
+- **MenuBar icon toggle:** `MenuBarIconRow` in Settings → `MenuBarExtra(isInserted:)`, bidirectional safety guard (can't hide both)
+- **Ghost-state guard:** AppDelegate detects both icons hidden (e.g. manual defaults edit) and forces dock visible
+- **UI consistency:** Extracted shared components (StatusBadge, EdgeBiasSlider), centralized magic numbers in UIConstants, fixed LabeledContent outside Form, unified ProgressView scales
+- **Accessibility:** VoiceOver labels on all icon-only buttons, sliders, zone preview canvas, and aura swatches
+
+**Remaining:**
 - **Notarization:** Code signing + notarized DMG for distribution
-- **Any UX rough edges** discovered during daily use
 
 ### M6 — Audio Reactivity (Future)
 
