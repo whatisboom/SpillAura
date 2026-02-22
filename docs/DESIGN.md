@@ -27,7 +27,7 @@ A macOS app that controls Philips Hue Play lights with rock-solid reliability an
 | **M2** | DTLS 1.2 PSK connection, entertainment session state machine, color streaming | Done |
 | **M3** | Aura system — static colors, cycling/bouncing palettes, AuraLibrary, MenuBar UI | Done |
 | **M4** | Screen sync — ScreenCaptureKit, zone regions, weighted edge average, EMA smoothing | Done |
-| **M5** | Polish — icon toggles, UI consistency, accessibility, notarization | In Progress |
+| **M5** | Polish — icon toggles, UI consistency, accessibility, notarization | Done (v1.0.0) |
 | **M6** | Audio reactivity — system audio capture, frequency/beat-mapped lighting | Future |
 
 ---
