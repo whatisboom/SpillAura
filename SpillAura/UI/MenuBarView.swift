@@ -15,7 +15,7 @@ struct MenuBarView: View {
 
             Divider()
 
-            statusRow
+            StatusBadge(status: syncController.connectionStatus)
 
             Divider()
 
@@ -164,38 +164,4 @@ struct MenuBarView: View {
         }
     }
 
-    // MARK: - Status Row
-
-    @ViewBuilder
-    private var statusRow: some View {
-        switch syncController.connectionStatus {
-        case .disconnected:
-            Label("Disconnected", systemImage: "circle")
-                .foregroundStyle(.secondary)
-                .font(.caption)
-                .help("Not connected — press Start to begin streaming.")
-
-        case .connecting:
-            HStack(spacing: 6) {
-                ProgressView().scaleEffect(0.6)
-                Text("Connecting…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .help("Connecting to your Hue bridge…")
-
-        case .streaming:
-            Label("Streaming", systemImage: "circle.fill")
-                .foregroundStyle(.green)
-                .font(.caption)
-                .help("Streaming to your lights.")
-
-        case .error(let message):
-            Label(message, systemImage: "exclamationmark.circle.fill")
-                .foregroundStyle(.red)
-                .font(.caption)
-                .lineLimit(3)
-                .help("An error occurred. Check your bridge connection and try again.")
-        }
-    }
 }
