@@ -165,7 +165,7 @@ struct SetupView: View {
             }
             .padding(24)
         }
-        .frame(width: 480, height: 520)
+        .frame(minWidth: 420, maxWidth: 480, minHeight: 460)
         .onAppear {
             discovery.startDiscovery()
             if let creds = auth.loadFromKeychain() {
