@@ -49,6 +49,7 @@ struct MenuBarView: View {
                     .foregroundStyle(.secondary)
                 Slider(value: $syncController.brightness, in: 0...1)
                     .help("Master brightness for all lights.")
+                    .accessibilityLabel("Brightness")
                 Image(systemName: "sun.max")
                     .foregroundStyle(.secondary)
             }
@@ -111,6 +112,7 @@ struct MenuBarView: View {
                 Image(systemName: "tortoise").foregroundStyle(.secondary)
                 Slider(value: $syncController.speedMultiplier, in: 0.25...1.5)
                     .help("How fast the color animation cycles. Slower is ambient; faster is energetic.")
+                    .accessibilityLabel("Animation speed")
                 Image(systemName: "hare").foregroundStyle(.secondary)
             }
 

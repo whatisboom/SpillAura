@@ -22,6 +22,7 @@ struct EdgeBiasSlider: View {
                 )
                 .frame(maxWidth: UIConstants.Size.edgeBiasSliderMaxWidth)
                 .help("Uniform: all pixels in the zone contribute equally. Edge: pixels at the screen edge — where your light bar sits — are weighted more heavily.")
+                .accessibilityLabel("Edge bias")
                 Text("Edge").font(.caption).foregroundStyle(.secondary)
             }
         }
