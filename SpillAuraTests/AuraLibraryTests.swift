@@ -4,11 +4,24 @@ import SpillAuraCore
 @MainActor
 final class AuraLibraryTests: XCTestCase {
 
+    // MARK: - Cleanup
+
+    private var tempURLs: [URL] = []
+
+    override func tearDown() {
+        for url in tempURLs {
+            try? FileManager.default.removeItem(at: url)
+        }
+        tempURLs.removeAll()
+        super.tearDown()
+    }
+
     // MARK: - Helpers
 
     private func makeLibrary(custom: [Aura] = []) -> AuraLibrary {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".json")
+        tempURLs.append(url)
         if !custom.isEmpty,
            let data = try? JSONEncoder().encode(custom) {
             try? data.write(to: url)
@@ -118,6 +131,7 @@ final class AuraLibraryTests: XCTestCase {
     func test_save_persistsAcrossReinit() {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".json")
+        tempURLs.append(url)
         let lib1 = AuraLibrary(fileURL: url)
         lib1.save(customAura(name: "Persist Me"))
 
@@ -177,11 +191,27 @@ final class AuraLibraryTests: XCTestCase {
         XCTAssertTrue(lib.auras.contains { $0.name == "Other" })
     }
 
+    // MARK: - Write failure
+
+    func test_save_toUnwritablePath_doesNotCrash() {
+        // Point the library at a path inside a non-existent directory
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("nested")
+            .appendingPathComponent("custom-auras.json")
+        let lib = AuraLibrary(fileURL: url)
+        // This should log an error but not crash
+        lib.save(customAura(name: "Should Not Crash"))
+        // Builtins still present — library state is consistent
+        XCTAssertEqual(lib.auras.count, 8)
+    }
+
     // MARK: - Corrupt JSON
 
     func test_corruptJSON_treatedAsNoCustomAuras() {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".json")
+        tempURLs.append(url)
         try? "not json".write(to: url, atomically: true, encoding: .utf8)
         let lib = AuraLibrary(fileURL: url)
         XCTAssertEqual(lib.auras.count, 8) // just the 8 builtins

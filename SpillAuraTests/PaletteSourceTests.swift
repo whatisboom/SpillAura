@@ -84,6 +84,24 @@ final class PaletteSourceTests: XCTestCase {
         XCTAssertEqual(result[0].b, 0, accuracy: 0.001)
     }
 
+    // MARK: - Speed multiplier
+
+    func test_cycle_speed2_doublesAnimationRate() {
+        // speed=2, t=0.25 → rawPhase = 0.25*2 = 0.5 → same as speed=1 at t=0.5
+        // palette: [red, blue], pos=0.5 → pos*2=1.0 → lower=1 (blue), t=0 → blue
+        let result = colors(for: aura(palette: [red(), blue()], speed: 2.0, pattern: .cycle), at: 0.25)
+        XCTAssertEqual(result[0].r, 0, accuracy: 0.001)
+        XCTAssertEqual(result[0].b, 1, accuracy: 0.001)
+    }
+
+    func test_cycle_speed0_5_halvesAnimationRate() {
+        // speed=0.5, t=1.0 → rawPhase = 1.0*0.5 = 0.5 → same as speed=1 at t=0.5
+        // palette: [red, blue], pos=0.5 → pos*2=1.0 → lower=1 (blue), t=0 → blue
+        let result = colors(for: aura(palette: [red(), blue()], speed: 0.5, pattern: .cycle), at: 1.0)
+        XCTAssertEqual(result[0].r, 0, accuracy: 0.001)
+        XCTAssertEqual(result[0].b, 1, accuracy: 0.001)
+    }
+
     // MARK: - Bounce pattern
 
     func test_bounce_atOrigin_returnsFirstColor() {
