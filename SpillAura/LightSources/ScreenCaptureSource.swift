@@ -50,8 +50,8 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
 
     func nextColors(channelCount: Int, at timestamp: TimeInterval) -> [(channel: UInt8, r: Float, g: Float, b: Float)] {
         lock.lock()
+        defer { lock.unlock() }
         let colors = _currentColors
-        lock.unlock()
         if colors.isEmpty {
             return (0..<channelCount).map { (channel: UInt8($0), r: 0, g: 0, b: 0) }
         }
@@ -104,8 +104,8 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
               let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let processed = extractColors(from: pixelBuffer)
         lock.lock()
+        defer { lock.unlock() }
         _currentColors = processed
-        lock.unlock()
     }
 
     // MARK: - SCStreamDelegate
@@ -133,8 +133,8 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
         let buf = base.assumingMemoryBound(to: UInt8.self)
 
         lock.lock()
+        defer { lock.unlock() }
         let factor = _emaFactor
-        lock.unlock()
         var result: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
         for (i, zone) in config.zones.enumerated() {
@@ -191,12 +191,18 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
     /// Update EMA factor and stream frame rate in-place — no stream teardown.
     func updateResponsiveness(_ r: SyncResponsiveness) {
         lock.lock()
+        defer { lock.unlock() }
         _emaFactor = Float(r.emaFactor)
-        lock.unlock()
 
         guard let s = stream else { return }
         let cfg = SCStreamConfiguration()
         cfg.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(r.frameRate))
-        Task { try? await s.updateConfiguration(cfg) }
+        Task {
+            do {
+                try await s.updateConfiguration(cfg)
+            } catch {
+                print("[ScreenCaptureSource] Failed to update stream configuration: \(error)")
+            }
+        }
     }
 }

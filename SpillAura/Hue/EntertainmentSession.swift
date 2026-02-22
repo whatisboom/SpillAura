@@ -317,9 +317,9 @@ final class HueSender: @unchecked Sendable {
 
     nonisolated func send(_ channelColors: [(channel: UInt8, r: Float, g: Float, b: Float)]) {
         lock.lock()
+        defer { lock.unlock() }
         let seq = sequenceNumber
         sequenceNumber = sequenceNumber &+ 1
-        lock.unlock()
         let packet = ColorPacketBuilder.buildPacket(
             channelColors: channelColors, sequence: seq, groupID: groupID)
         connection.send(content: packet, completion: .idempotent)
