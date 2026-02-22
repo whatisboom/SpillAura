@@ -9,8 +9,15 @@ public enum BuiltinAuras {
         disco, neon, fire, warmSunset, forest, ocean, galaxy, candy
     ]
 
+    private static func stableID(_ string: String) -> UUID {
+        guard let uuid = UUID(uuidString: string) else {
+            preconditionFailure("Invalid builtin aura UUID: \(string)")
+        }
+        return uuid
+    }
+
     public static let warmSunset = Aura(
-        id: UUID(uuidString: "00000001-0000-0000-0000-000000000000")!,
+        id: stableID("00000001-0000-0000-0000-000000000000"),
         name: "Warm Sunset",
         type: .dynamic,
         palette: [
@@ -25,7 +32,7 @@ public enum BuiltinAuras {
     )
 
     public static let neon = Aura(
-        id: UUID(uuidString: "00000002-0000-0000-0000-000000000000")!,
+        id: stableID("00000002-0000-0000-0000-000000000000"),
         name: "Neon",
         type: .dynamic,
         palette: [
@@ -39,7 +46,7 @@ public enum BuiltinAuras {
     )
 
     public static let ocean = Aura(
-        id: UUID(uuidString: "00000003-0000-0000-0000-000000000000")!,
+        id: stableID("00000003-0000-0000-0000-000000000000"),
         name: "Ocean",
         type: .dynamic,
         palette: [
@@ -54,7 +61,7 @@ public enum BuiltinAuras {
     )
 
     public static let forest = Aura(
-        id: UUID(uuidString: "00000004-0000-0000-0000-000000000000")!,
+        id: stableID("00000004-0000-0000-0000-000000000000"),
         name: "Forest",
         type: .dynamic,
         palette: [
@@ -68,7 +75,7 @@ public enum BuiltinAuras {
     )
 
     public static let candy = Aura(
-        id: UUID(uuidString: "00000005-0000-0000-0000-000000000000")!,
+        id: stableID("00000005-0000-0000-0000-000000000000"),
         name: "Candy",
         type: .dynamic,
         palette: [
@@ -82,7 +89,7 @@ public enum BuiltinAuras {
     )
 
     public static let fire = Aura(
-        id: UUID(uuidString: "00000006-0000-0000-0000-000000000000")!,
+        id: stableID("00000006-0000-0000-0000-000000000000"),
         name: "Fire",
         type: .dynamic,
         palette: [
@@ -96,7 +103,7 @@ public enum BuiltinAuras {
     )
 
     public static let galaxy = Aura(
-        id: UUID(uuidString: "00000007-0000-0000-0000-000000000000")!,
+        id: stableID("00000007-0000-0000-0000-000000000000"),
         name: "Galaxy",
         type: .dynamic,
         palette: [
@@ -111,7 +118,7 @@ public enum BuiltinAuras {
     )
 
     public static let disco = Aura(
-        id: UUID(uuidString: "00000008-0000-0000-0000-000000000000")!,
+        id: stableID("00000008-0000-0000-0000-000000000000"),
         name: "Disco",
         type: .dynamic,
         palette: [
