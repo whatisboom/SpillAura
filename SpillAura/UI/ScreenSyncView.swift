@@ -23,26 +23,7 @@ struct ScreenSyncView: View {
             }
 
             // Edge Bias
-            HStack {
-                Text("Edge Bias")
-                Spacer()
-                HStack(spacing: 6) {
-                    Text("Uniform").font(.caption).foregroundStyle(.secondary)
-                    Slider(
-                        value: Binding(
-                            get: { syncController.zoneConfig.edgeBias },
-                            set: { newVal in
-                                syncController.zoneConfig.edgeBias = newVal
-                                syncController.saveZoneConfig()
-                            }
-                        ),
-                        in: 0...1
-                    )
-                    .frame(maxWidth: 120)
-                    .help("Uniform: all pixels in the zone contribute equally. Edge: pixels at the screen edge — where your light bar sits — are weighted more heavily.")
-                    Text("Edge").font(.caption).foregroundStyle(.secondary)
-                }
-            }
+            EdgeBiasSlider()
 
             // Live preview canvas
             ZonePreviewCanvas(
