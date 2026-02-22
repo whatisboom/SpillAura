@@ -121,7 +121,7 @@ struct ZoneConfig: Codable {
     var displayID: UInt32   // 0 = CGMainDisplayID()
     var zones: [Zone]
     /// 0 = uniform sampling across the triangle, 1 = pixels at the screen edge dominate.
-    /// Maps to a weight multiplier of 1× (bias=0) to 5× (bias=1). Default 0.5 → 3×.
+    /// Maps to a weight multiplier of 1× (bias=0) to 5× (bias=1). Default 0.0 → uniform.
     var edgeBias: Double
 
     static func defaultConfig(channelCount: Int) -> ZoneConfig {
@@ -134,7 +134,7 @@ struct ZoneConfig: Codable {
                          + Array(repeating: .fullScreen, count: max(0, channelCount - 4))
         }
         let zones = regions.enumerated().map { Zone(channelID: UInt8($0.offset), region: $0.element) }
-        return ZoneConfig(displayID: 0, zones: zones, edgeBias: 0.5)
+        return ZoneConfig(displayID: 0, zones: zones, edgeBias: 0.0)
     }
 
     static func load(channelCount: Int) -> ZoneConfig {
