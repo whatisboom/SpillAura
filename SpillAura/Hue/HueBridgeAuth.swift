@@ -36,11 +36,7 @@ class HueBridgeAuth {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: [String: Any] = [
-            "devicetype": "SpillAura#mac",
-            "generateclientkey": true
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try JSONEncoder().encode(PairRequestBody())
 
         let (data, _): (Data, URLResponse)
         do {
@@ -51,21 +47,28 @@ class HueBridgeAuth {
 
         // Response is an array: [{"success": {"username": "...", "clientkey": "..."}}]
         // or [{"error": {"type": 101, "description": "link button not pressed"}}]
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-              let first = json.first else {
+        let entries: [PairResponseEntry]
+        do {
+            entries = try JSONDecoder().decode([PairResponseEntry].self, from: data)
+        } catch {
             throw AuthError.unexpectedResponse(String(data: data, encoding: .utf8) ?? "empty")
         }
 
-        if let error = first["error"] as? [String: Any],
-           let type_ = error["type"] as? Int, type_ == 101 {
+        guard let first = entries.first else {
+            throw AuthError.unexpectedResponse("Empty response array")
+        }
+
+        if let pairError = first.error, pairError.type == 101 {
             throw AuthError.linkButtonNotPressed
         }
 
-        guard let success = first["success"] as? [String: Any],
-              let username = success["username"] as? String,
-              let clientKey = success["clientkey"] as? String else {
-            throw AuthError.unexpectedResponse(String(data: data, encoding: .utf8) ?? "empty")
+        guard let success = first.success else {
+            let detail = first.error?.description ?? "no success or error in response"
+            throw AuthError.unexpectedResponse(detail)
         }
+
+        let username = success.username
+        let clientKey = success.clientkey
 
         let credentials = BridgeCredentials(
             bridgeIP: bridgeIP,
@@ -141,17 +144,15 @@ class HueBridgeAuth {
         let session = URLSession(configuration: .default, delegate: SelfSignedCertDelegate(), delegateQueue: nil)
         let (data, _) = try await session.data(for: request)
 
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let resources = json["data"] as? [[String: Any]] else {
+        let response: HueResponse<EntertainmentConfigResource>
+        do {
+            response = try JSONDecoder().decode(HueResponse<EntertainmentConfigResource>.self, from: data)
+        } catch {
             throw AuthError.unexpectedResponse(String(data: data, encoding: .utf8) ?? "empty")
         }
 
-        return resources.compactMap { resource in
-            guard let id = resource["id"] as? String,
-                  let metadata = resource["metadata"] as? [String: Any],
-                  let name = metadata["name"] as? String,
-                  let channels = resource["channels"] as? [[String: Any]] else { return nil }
-            return EntertainmentGroup(id: id, name: name, channelCount: channels.count)
+        return response.data.map { resource in
+            EntertainmentGroup(id: resource.id, name: resource.metadata.name, channelCount: resource.channels.count)
         }
     }
 }

@@ -96,13 +96,12 @@ final class EntertainmentSession: ObservableObject {
         request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
         let session = URLSession(configuration: .default, delegate: SessionSelfSignedCertDelegate(), delegateQueue: nil)
         let (data, _) = try await session.data(for: request)
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let dataArr = json["data"] as? [[String: Any]],
-              let first = dataArr.first,
-              let status = first["status"] as? String else {
+        guard let response = try? JSONDecoder().decode(
+            HueResponse<EntertainmentConfigResource>.self, from: data
+        ), let first = response.data.first else {
             return "unknown"
         }
-        return status
+        return first.status ?? "unknown"
     }
 
     private func deactivateREST() {
@@ -127,7 +126,7 @@ final class EntertainmentSession: ObservableObject {
         request.httpMethod = "PUT"
         request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["action": action])
+        request.httpBody = try JSONEncoder().encode(EntertainmentAction(action: action))
 
         let session = URLSession(
             configuration: .default,
