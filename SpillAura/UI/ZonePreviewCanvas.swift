@@ -58,5 +58,11 @@ struct ZonePreviewCanvas: View {
         }
         .aspectRatio(16.0 / 9.0, contentMode: .fit)
         .help("Live preview of your screen zones. Colors update in real time while streaming.")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Zone preview")
+        .accessibilityValue(zones.map { zone in
+            let channelColor = ChannelColor.color(for: Int(zone.channelID), of: zones.count)
+            return "\(channelColor.name): \(zone.region.label)"
+        }.joined(separator: ", "))
     }
 }
