@@ -51,6 +51,8 @@ struct SettingsView: View {
                         Divider()
                         AutoStartRow()
                         LaunchHiddenRow()
+                        Divider()
+                        DockIconRow()
                     }
                     .padding(4)
                 }
@@ -316,6 +318,22 @@ private struct LaunchHiddenRow: View {
     var body: some View {
         Toggle("Launch with window hidden", isOn: $launchWindowHidden)
             .help("Launch SpillAura silently to the menu bar without showing the main window.")
+    }
+}
+
+// MARK: - DockIconRow
+
+private struct DockIconRow: View {
+    @AppStorage("showDockIcon") private var showDockIcon = true
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
+
+    var body: some View {
+        Toggle("Show Dock icon", isOn: $showDockIcon)
+            .help("Show SpillAura in the Dock. At least one of Dock or menu bar icon must remain visible.")
+            .disabled(!showMenuBarIcon)
+            .onChange(of: showDockIcon) { _, show in
+                NSApp.setActivationPolicy(show ? .regular : .accessory)
+            }
     }
 }
 
