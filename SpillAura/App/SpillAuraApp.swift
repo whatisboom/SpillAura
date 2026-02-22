@@ -6,7 +6,7 @@ struct SpillAuraApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var syncController = SyncController()
     @StateObject private var auraLibrary = AuraLibrary()
-    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
+    @AppStorage(StorageKey.showMenuBarIcon) private var showMenuBarIcon = true
 
     var body: some Scene {
         MenuBarExtra(isInserted: $showMenuBarIcon) {

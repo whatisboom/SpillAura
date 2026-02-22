@@ -10,8 +10,8 @@ struct SetupView: View {
     @State private var credentials: BridgeCredentials? = nil
     @State private var errorMessage: String? = nil
 
-    @AppStorage("entertainmentGroupID")    private var storedGroupID: String = ""
-    @AppStorage("entertainmentChannelCount") private var storedChannelCount: Int = 1
+    @AppStorage(StorageKey.entertainmentGroupID)    private var storedGroupID: String = ""
+    @AppStorage(StorageKey.entertainmentChannelCount) private var storedChannelCount: Int = 1
     @State private var zoneConfig: ZoneConfig = ZoneConfig.defaultConfig(channelCount: 1)
     @State private var setupComplete: Bool = false
 
@@ -207,8 +207,8 @@ struct EntertainmentGroupPicker: View {
     @State private var selectedGroupID: String? = nil
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
-    @AppStorage("entertainmentGroupID") private var storedGroupID: String = ""
-    @AppStorage("entertainmentChannelCount") private var storedChannelCount: Int = 1
+    @AppStorage(StorageKey.entertainmentGroupID) private var storedGroupID: String = ""
+    @AppStorage(StorageKey.entertainmentChannelCount) private var storedChannelCount: Int = 1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

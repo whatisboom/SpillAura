@@ -19,10 +19,10 @@ class SyncController: ObservableObject {
     }
 
     @Published var selectedMode: SyncMode = {
-        let raw = UserDefaults.standard.string(forKey: "selectedMode") ?? ""
+        let raw = UserDefaults.standard.string(forKey: StorageKey.selectedMode) ?? ""
         return SyncMode(rawValue: raw) ?? .screen
     }() {
-        didSet { UserDefaults.standard.set(selectedMode.rawValue, forKey: "selectedMode") }
+        didSet { UserDefaults.standard.set(selectedMode.rawValue, forKey: StorageKey.selectedMode) }
     }
 
     @Published private(set) var connectionStatus: ConnectionStatus = .disconnected {
@@ -33,31 +33,31 @@ class SyncController: ObservableObject {
     @Published private(set) var menuBarIcon: String = "lightbulb"
 
     @Published var responsiveness: SyncResponsiveness = {
-        let raw = UserDefaults.standard.string(forKey: "syncResponsiveness") ?? ""
+        let raw = UserDefaults.standard.string(forKey: StorageKey.syncResponsiveness) ?? ""
         return SyncResponsiveness(rawValue: raw) ?? .balanced
     }() {
         didSet {
-            UserDefaults.standard.set(responsiveness.rawValue, forKey: "syncResponsiveness")
+            UserDefaults.standard.set(responsiveness.rawValue, forKey: StorageKey.syncResponsiveness)
             (activeSource as? ScreenCaptureSource)?.updateResponsiveness(responsiveness)
         }
     }
 
     @Published var brightness: Float = {
-        let stored = UserDefaults.standard.float(forKey: "brightness")
+        let stored = UserDefaults.standard.float(forKey: StorageKey.brightness)
         return stored == 0 ? 1.0 : stored
     }() {
         didSet {
-            UserDefaults.standard.set(brightness, forKey: "brightness")
+            UserDefaults.standard.set(brightness, forKey: StorageKey.brightness)
             Task { await syncActor.setBrightness(brightness) }
         }
     }
 
     @Published var speedMultiplier: Double = {
-        let stored = UserDefaults.standard.double(forKey: "speedMultiplier")
+        let stored = UserDefaults.standard.double(forKey: StorageKey.speedMultiplier)
         return stored == 0 ? 1.0 : stored
     }() {
         didSet {
-            UserDefaults.standard.set(speedMultiplier, forKey: "speedMultiplier")
+            UserDefaults.standard.set(speedMultiplier, forKey: StorageKey.speedMultiplier)
             Task { await syncActor.setSpeedMultiplier(speedMultiplier) }
         }
     }
@@ -67,7 +67,7 @@ class SyncController: ObservableObject {
     @Published private(set) var previewColors: [(channel: UInt8, r: Float, g: Float, b: Float)] = []
 
     @Published var zoneConfig: ZoneConfig = {
-        let cc = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        let cc = UserDefaults.standard.object(forKey: StorageKey.entertainmentChannelCount) as? Int ?? 1
         return ZoneConfig.load(channelCount: cc)
     }()
 
@@ -139,9 +139,9 @@ class SyncController: ObservableObject {
         activeAura = aura
         activeSource = PaletteSource(aura: aura)
         Task { await syncActor.setSource(activeSource) }
-        UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: "lastMode")
+        UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: StorageKey.lastMode)
         if let data = try? JSONEncoder().encode(aura) {
-            UserDefaults.standard.set(data, forKey: "lastAura")
+            UserDefaults.standard.set(data, forKey: StorageKey.lastAura)
         }
         if connectionStatus == .disconnected {
             startSession()
@@ -162,7 +162,7 @@ class SyncController: ObservableObject {
         activeAura = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
         Task { await syncActor.setSource(activeSource) }
-        UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: "lastMode")
+        UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: StorageKey.lastMode)
         if connectionStatus == .disconnected {
             startSession()
         }
@@ -201,7 +201,7 @@ class SyncController: ObservableObject {
     /// every physical light to its on-screen label at once.
     /// If already streaming, overrides via pulsedIdentify. If disconnected, starts a temp session.
     func identifyAll() {
-        let count = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        let count = UserDefaults.standard.object(forKey: StorageKey.entertainmentChannelCount) as? Int ?? 1
         let entries: [ColorEntry] = (0..<count).map { i in
             let c = ChannelColor.color(for: i, of: count)
             return (channel: UInt8(i), r: c.r, g: c.g, b: c.b)
@@ -239,7 +239,7 @@ class SyncController: ObservableObject {
     private func autoStartIfNeeded() {
         guard !hasAutoStarted else { return }
         hasAutoStarted = true
-        guard UserDefaults.standard.bool(forKey: "autoStartOnLaunch") else { return }
+        guard UserDefaults.standard.bool(forKey: StorageKey.autoStartOnLaunch) else { return }
         guard resumeLastSession() else {
             // First launch — no saved session. Start with Disco.
             startAura(BuiltinAuras.disco)
@@ -250,13 +250,13 @@ class SyncController: ObservableObject {
     /// Resumes the last mode from UserDefaults. Returns true if a session was started.
     @discardableResult
     private func resumeLastSession() -> Bool {
-        let mode = UserDefaults.standard.string(forKey: "lastMode").flatMap(SyncMode.init)
+        let mode = UserDefaults.standard.string(forKey: StorageKey.lastMode).flatMap(SyncMode.init)
         if mode == .screen {
             selectedMode = .screen
             startScreenSync()
             return true
         } else if mode == .aura,
-                  let data = UserDefaults.standard.data(forKey: "lastAura"),
+                  let data = UserDefaults.standard.data(forKey: StorageKey.lastAura),
                   let aura = try? JSONDecoder().decode(Aura.self, from: data) {
             selectedMode = .aura
             startAura(aura)
@@ -271,13 +271,13 @@ class SyncController: ObservableObject {
             return
         }
 
-        let groupID = UserDefaults.standard.string(forKey: "entertainmentGroupID") ?? ""
+        let groupID = UserDefaults.standard.string(forKey: StorageKey.entertainmentGroupID) ?? ""
         guard !groupID.isEmpty else {
             connectionStatus = .error("No entertainment group selected. Complete setup first.")
             return
         }
 
-        channelCount = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        channelCount = UserDefaults.standard.object(forKey: StorageKey.entertainmentChannelCount) as? Int ?? 1
 
         let newSession = EntertainmentSession(
             credentials: credentials,

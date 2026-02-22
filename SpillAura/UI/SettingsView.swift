@@ -303,7 +303,7 @@ private struct BridgePairingSection: View {
 // MARK: - AutoStartRow
 
 private struct AutoStartRow: View {
-    @AppStorage("autoStartOnLaunch") private var autoStartOnLaunch = false
+    @AppStorage(StorageKey.autoStartOnLaunch) private var autoStartOnLaunch = false
 
     var body: some View {
         Toggle("Start streaming automatically on launch", isOn: $autoStartOnLaunch)
@@ -314,7 +314,7 @@ private struct AutoStartRow: View {
 // MARK: - LaunchHiddenRow
 
 private struct LaunchHiddenRow: View {
-    @AppStorage("launchWindowHidden") private var launchWindowHidden = false
+    @AppStorage(StorageKey.launchWindowHidden) private var launchWindowHidden = false
 
     var body: some View {
         Toggle("Launch with window hidden", isOn: $launchWindowHidden)
@@ -325,8 +325,8 @@ private struct LaunchHiddenRow: View {
 // MARK: - DockIconRow
 
 private struct DockIconRow: View {
-    @AppStorage("showDockIcon") private var showDockIcon = true
-    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
+    @AppStorage(StorageKey.showDockIcon) private var showDockIcon = true
+    @AppStorage(StorageKey.showMenuBarIcon) private var showMenuBarIcon = true
 
     var body: some View {
         Toggle("Show Dock icon", isOn: $showDockIcon)
@@ -344,8 +344,8 @@ private struct DockIconRow: View {
 // MARK: - MenuBarIconRow
 
 private struct MenuBarIconRow: View {
-    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
-    @AppStorage("showDockIcon") private var showDockIcon = true
+    @AppStorage(StorageKey.showMenuBarIcon) private var showMenuBarIcon = true
+    @AppStorage(StorageKey.showDockIcon) private var showDockIcon = true
 
     var body: some View {
         Toggle("Show menu bar icon", isOn: $showMenuBarIcon)

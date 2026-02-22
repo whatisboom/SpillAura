@@ -54,14 +54,14 @@ enum SyncResponsiveness: String, CaseIterable, Identifiable {
 
 class AppSettings: ObservableObject {
     @Published var entertainmentGroupID: String? {
-        didSet { UserDefaults.standard.set(entertainmentGroupID, forKey: "entertainmentGroupID") }
+        didSet { UserDefaults.standard.set(entertainmentGroupID, forKey: StorageKey.entertainmentGroupID) }
     }
     @Published var entertainmentChannelCount: Int {
-        didSet { UserDefaults.standard.set(entertainmentChannelCount, forKey: "entertainmentChannelCount") }
+        didSet { UserDefaults.standard.set(entertainmentChannelCount, forKey: StorageKey.entertainmentChannelCount) }
     }
 
     init() {
-        self.entertainmentGroupID = UserDefaults.standard.string(forKey: "entertainmentGroupID")
-        self.entertainmentChannelCount = UserDefaults.standard.object(forKey: "entertainmentChannelCount") as? Int ?? 1
+        self.entertainmentGroupID = UserDefaults.standard.string(forKey: StorageKey.entertainmentGroupID)
+        self.entertainmentChannelCount = UserDefaults.standard.object(forKey: StorageKey.entertainmentChannelCount) as? Int ?? 1
     }
 }
