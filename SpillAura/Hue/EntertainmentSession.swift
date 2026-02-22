@@ -90,11 +90,9 @@ final class EntertainmentSession: ObservableObject {
     }
 
     private func fetchSessionStatus() async throws -> String {
-        let urlString = "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration/\(groupID)"
-        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
-        var request = URLRequest(url: url)
-        request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
-        let session = URLSession(configuration: .default, delegate: SessionSelfSignedCertDelegate(), delegateQueue: nil)
+        var request = URLRequest(url: try entertainmentConfigURL())
+        request.setValue(credentials.username, forHTTPHeaderField: HueHeader.applicationKey)
+        let session = URLSession(configuration: .default, delegate: HueBridgeCertDelegate(), delegateQueue: nil)
         let (data, _) = try await session.data(for: request)
         guard let response = try? JSONDecoder().decode(
             HueResponse<EntertainmentConfigResource>.self, from: data
@@ -117,20 +115,15 @@ final class EntertainmentSession: ObservableObject {
     }
 
     private func putAction(_ action: String) async throws {
-        let urlString = "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration/\(groupID)"
-        guard let url = URL(string: urlString) else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: try entertainmentConfigURL())
         request.httpMethod = "PUT"
-        request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
+        request.setValue(credentials.username, forHTTPHeaderField: HueHeader.applicationKey)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(EntertainmentAction(action: action))
 
         let session = URLSession(
             configuration: .default,
-            delegate: SessionSelfSignedCertDelegate(),
+            delegate: HueBridgeCertDelegate(),
             delegateQueue: nil
         )
         let (_, response) = try await session.data(for: request)
@@ -267,7 +260,7 @@ final class EntertainmentSession: ObservableObject {
 
     private func scheduleReconnect() {
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(for: .seconds(2))
             guard let self, case .reconnecting = self.state else { return }
             self.openDTLS()
         }
@@ -284,6 +277,13 @@ final class EntertainmentSession: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    private func entertainmentConfigURL() throws -> URL {
+        guard let url = URL(string: "https://\(credentials.bridgeIP)/clip/v2/resource/entertainment_configuration/\(groupID)") else {
+            throw URLError(.badURL)
+        }
+        return url
+    }
 
     private func hexToData(_ hex: String) -> Data {
         var data = Data()
@@ -322,24 +322,5 @@ final class HueSender: @unchecked Sendable {
         let packet = ColorPacketBuilder.buildPacket(
             channelColors: channelColors, sequence: seq, groupID: groupID)
         connection.send(content: packet, completion: .idempotent)
-    }
-}
-
-// MARK: - Self-Signed Certificate Delegate
-
-/// Bypasses certificate validation for the Hue bridge's self-signed TLS cert.
-/// The bridge is local-network only, so this is acceptable.
-private final class SessionSelfSignedCertDelegate: NSObject, URLSessionDelegate {
-    func urlSession(
-        _ session: URLSession,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-    ) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-           let trust = challenge.protectionSpace.serverTrust {
-            completionHandler(.useCredential, URLCredential(trust: trust))
-        } else {
-            completionHandler(.performDefaultHandling, nil)
-        }
     }
 }

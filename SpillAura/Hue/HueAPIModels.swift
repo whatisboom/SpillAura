@@ -48,3 +48,28 @@ struct PairError: Decodable {
 struct EntertainmentAction: Encodable {
     let action: String
 }
+
+// MARK: - Shared URLSession Delegate
+
+/// Bypasses certificate validation for the Hue bridge's self-signed TLS cert.
+/// The bridge is local-network only, so this is acceptable.
+final class HueBridgeCertDelegate: NSObject, URLSessionDelegate {
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+           let trust = challenge.protectionSpace.serverTrust {
+            completionHandler(.useCredential, URLCredential(trust: trust))
+        } else {
+            completionHandler(.performDefaultHandling, nil)
+        }
+    }
+}
+
+// MARK: - HTTP Header Constants
+
+enum HueHeader {
+    static let applicationKey = "hue-application-key"
+}

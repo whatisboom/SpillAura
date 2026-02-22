@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 @MainActor
-class HueBridgeDiscovery: NSObject, ObservableObject {
+final class HueBridgeDiscovery: NSObject, ObservableObject {
     @Published var discoveredBridges: [DiscoveredBridge] = []
     @Published var isSearching = false
 

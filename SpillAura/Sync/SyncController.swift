@@ -354,7 +354,7 @@ extension SyncController {
 
 /// Shows a single channel in a steady solid color; all other channels black.
 /// Used by identify(channel:color:) to let users match color-coded labels to physical lights.
-private final class IdentifySource: LightSource, @unchecked Sendable {
+private final class IdentifySource: LightSource, Sendable {
     let channel: UInt8
     let r: Float, g: Float, b: Float
     init(channel: UInt8, r: Float, g: Float, b: Float) {
@@ -376,7 +376,7 @@ private final class IdentifySource: LightSource, @unchecked Sendable {
 
 /// Shows every channel in its distinct ChannelColor simultaneously.
 /// Used by identifyAll() when no active streaming session exists.
-private final class IdentifyAllSource: LightSource, @unchecked Sendable {
+private final class IdentifyAllSource: LightSource, Sendable {
     let channelColors: [(channel: UInt8, r: Float, g: Float, b: Float)]
 
     init(channelCount: Int) {

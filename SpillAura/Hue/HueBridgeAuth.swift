@@ -24,7 +24,10 @@ enum AuthError: LocalizedError {
     }
 }
 
-class HueBridgeAuth {
+final class HueBridgeAuth {
+
+    private static let keychainService = "com.spillaura.bridge"
+    private static let keychainAccount = "credentials"
 
     // MARK: - Pairing
 
@@ -87,8 +90,8 @@ class HueBridgeAuth {
 
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "com.spillaura.bridge",
-            kSecAttrAccount: "credentials",
+            kSecAttrService: Self.keychainService,
+            kSecAttrAccount: Self.keychainAccount,
             kSecValueData: data
         ]
 
@@ -102,8 +105,8 @@ class HueBridgeAuth {
     func loadFromKeychain() -> BridgeCredentials? {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "com.spillaura.bridge",
-            kSecAttrAccount: "credentials",
+            kSecAttrService: Self.keychainService,
+            kSecAttrAccount: Self.keychainAccount,
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne
         ]
@@ -138,10 +141,10 @@ class HueBridgeAuth {
             throw AuthError.unexpectedResponse("Invalid bridge IP: \(credentials.bridgeIP)")
         }
         var request = URLRequest(url: url)
-        request.setValue(credentials.username, forHTTPHeaderField: "hue-application-key")
+        request.setValue(credentials.username, forHTTPHeaderField: HueHeader.applicationKey)
 
         // The bridge uses a self-signed cert — bypass validation for local connections
-        let session = URLSession(configuration: .default, delegate: SelfSignedCertDelegate(), delegateQueue: nil)
+        let session = URLSession(configuration: .default, delegate: HueBridgeCertDelegate(), delegateQueue: nil)
         let (data, _) = try await session.data(for: request)
 
         let response: HueResponse<EntertainmentConfigResource>
@@ -153,19 +156,6 @@ class HueBridgeAuth {
 
         return response.data.map { resource in
             EntertainmentGroup(id: resource.id, name: resource.metadata.name, channelCount: resource.channels.count)
-        }
-    }
-}
-
-// Bypasses certificate validation for the Hue bridge's self-signed cert
-private class SelfSignedCertDelegate: NSObject, URLSessionDelegate {
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
-                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-           let trust = challenge.protectionSpace.serverTrust {
-            completionHandler(.useCredential, URLCredential(trust: trust))
-        } else {
-            completionHandler(.performDefaultHandling, nil)
         }
     }
 }
