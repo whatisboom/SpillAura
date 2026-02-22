@@ -188,7 +188,7 @@ private struct BridgePairingSection: View {
         VStack(alignment: .leading, spacing: 10) {
             if discovery.isSearching {
                 HStack(spacing: 6) {
-                    ProgressView().scaleEffect(0.7)
+                    ProgressView().scaleEffect(UIConstants.ProgressScale.inline)
                     Text("Searching for bridges…")
                         .foregroundStyle(.secondary)
                         .font(.callout)
@@ -259,7 +259,7 @@ private struct BridgePairingSection: View {
 
             case .pairing:
                 HStack {
-                    ProgressView().scaleEffect(0.7)
+                    ProgressView().scaleEffect(UIConstants.ProgressScale.inline)
                     Text("Pairing…").font(.callout)
                 }
 

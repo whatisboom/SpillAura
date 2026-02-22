@@ -31,7 +31,7 @@ struct SetupView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         if discovery.isSearching {
                             HStack {
-                                ProgressView().scaleEffect(0.7)
+                                ProgressView().scaleEffect(UIConstants.ProgressScale.inline)
                                 Text("Searching for bridges…")
                                     .foregroundStyle(.secondary)
                             }
@@ -104,7 +104,7 @@ struct SetupView: View {
                                 }
                             case .pairing:
                                 HStack {
-                                    ProgressView().scaleEffect(0.7)
+                                    ProgressView().scaleEffect(UIConstants.ProgressScale.inline)
                                     Text("Pairing…")
                                 }
                             case .success:
@@ -214,7 +214,7 @@ struct EntertainmentGroupPicker: View {
         VStack(alignment: .leading, spacing: 8) {
             if isLoading {
                 HStack {
-                    ProgressView().scaleEffect(0.7)
+                    ProgressView().scaleEffect(UIConstants.ProgressScale.inline)
                     Text("Loading lighting groups…")
                         .foregroundStyle(.secondary)
                 }
