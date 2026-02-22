@@ -12,13 +12,16 @@ struct ScreenSyncView: View {
                 .fontWeight(.semibold)
 
             // Responsiveness
-            LabeledContent("Responsiveness") {
+            HStack {
+                Text("Responsiveness")
+                Spacer()
                 Picker("", selection: $syncController.responsiveness) {
                     ForEach(SyncResponsiveness.allCases) { preset in
                         Text(preset.label).tag(preset)
                     }
                 }
                 .pickerStyle(.menu)
+                .fixedSize()
                 .help("How quickly lights react to screen changes. Instant is best for gaming; Cinematic gives smooth, lag-tolerant transitions.")
             }
 
