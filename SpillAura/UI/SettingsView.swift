@@ -53,6 +53,7 @@ struct SettingsView: View {
                         LaunchHiddenRow()
                         Divider()
                         DockIconRow()
+                        MenuBarIconRow()
                     }
                     .padding(4)
                 }
@@ -333,7 +334,23 @@ private struct DockIconRow: View {
             .disabled(!showMenuBarIcon)
             .onChange(of: showDockIcon) { _, show in
                 NSApp.setActivationPolicy(show ? .regular : .accessory)
+                if !show {
+                    NSApp.activate(ignoringOtherApps: true)
+                }
             }
+    }
+}
+
+// MARK: - MenuBarIconRow
+
+private struct MenuBarIconRow: View {
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
+    @AppStorage("showDockIcon") private var showDockIcon = true
+
+    var body: some View {
+        Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
+            .help("Show SpillAura in the menu bar. At least one of Dock or menu bar icon must remain visible.")
+            .disabled(!showDockIcon)
     }
 }
 
