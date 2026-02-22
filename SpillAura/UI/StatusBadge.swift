@@ -15,9 +15,9 @@ struct StatusBadge: View {
         case .connecting:
             HStack(spacing: UIConstants.Spacing.iconSliderGap) {
                 ProgressView().scaleEffect(UIConstants.ProgressScale.inline)
-                Text("Connecting\u{2026}").font(.caption).foregroundStyle(.secondary)
+                Text("Connecting…").font(.caption).foregroundStyle(.secondary)
             }
-            .help("Connecting to your Hue bridge\u{2026}")
+            .help("Connecting to your Hue bridge…")
 
         case .streaming:
             Label("Streaming", systemImage: "circle.fill")

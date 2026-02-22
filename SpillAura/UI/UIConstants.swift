@@ -4,9 +4,6 @@ import SwiftUI
 enum UIConstants {
     // MARK: - Spacing
     enum Spacing {
-        static let sectionGap: CGFloat = 20
-        static let rowGap: CGFloat = 12
-        static let tightGap: CGFloat = 8
         static let iconSliderGap: CGFloat = 6
     }
 
