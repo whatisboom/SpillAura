@@ -49,17 +49,17 @@ TelemetryDeck Swift SDK via SPM: `https://github.com/TelemetryDeck/SwiftSDK`
 ```swift
 enum AnalyticsSignal {
     // Session Reliability
-    case entertainmentSessionStarted(bridgeModel: String, channelCount: Int, groupId: String)
+    case entertainmentSessionStarted(channelCount: Int, groupId: String)
     case entertainmentSessionEnded(durationSeconds: Int, reconnectCount: Int)
     case entertainmentSessionFailed(errorReason: String, phase: String)
     case entertainmentSessionReconnect(attemptNumber: Int, previousDurationSeconds: Int)
     case bridgeDiscoveryCompleted(method: String, durationMs: Int)
-    case appResumedFromSleep(sessionRecovered: Bool)
+    case appResumedFromSleep
 
     // Streaming Health
     case streamingModeActivated(mode: String, detail: String)
     case streamingModeSwitched(fromMode: String, toMode: String)
-    case screenCaptureStarted(displayId: String, zoneCount: Int, edgeBias: Double)
+    case screenCaptureStarted(displayId: UInt32, zoneCount: Int, edgeBias: Double)
     case screenCaptureFailed(errorDescription: String)
 
     // Usage
@@ -95,7 +95,7 @@ Each case maps to a TelemetryDeck signal name (e.g. `"entertainmentSessionStarte
 - Toggle in `SettingsView.swift` under a "Privacy" section:
   - Label: "Send Anonymous Analytics"
   - Description: "Helps improve SpillAura. No personal data is collected."
-- On toggle off: `TelemetryDeck.terminate()`, no further signals
+- On toggle off: `Analytics.send()` guard returns immediately, no further signals
 - On toggle on: re-initialize TelemetryDeck
 
 ## Initialization
