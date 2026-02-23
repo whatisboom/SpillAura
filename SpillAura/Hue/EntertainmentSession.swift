@@ -243,7 +243,7 @@ final class EntertainmentSession: ObservableObject {
                 sender = HueSender(connection: conn, groupID: groupID)
             }
             state = .streaming
-            sessionStartDate = Date()
+            if sessionStartDate == nil { sessionStartDate = Date() }
             Analytics.send(.entertainmentSessionStarted(
                 channelCount: channelCount,
                 groupId: groupID
