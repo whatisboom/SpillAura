@@ -38,6 +38,7 @@ class SyncController: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(responsiveness.rawValue, forKey: StorageKey.syncResponsiveness)
+            Analytics.send(.settingsChanged(setting: "responsiveness", newValue: responsiveness.rawValue))
             (activeSource as? ScreenCaptureSource)?.updateResponsiveness(responsiveness)
         }
     }
@@ -48,6 +49,13 @@ class SyncController: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(brightness, forKey: StorageKey.brightness)
+            brightnessDebounceTask?.cancel()
+            let value = Double(brightness)
+            brightnessDebounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                Analytics.send(.brightnessChanged(value: value))
+            }
             Task { await syncActor.setBrightness(brightness) }
         }
     }
@@ -94,6 +102,7 @@ class SyncController: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self, wasStreamingBeforeSleep else { return }
                 wasStreamingBeforeSleep = false
+                Analytics.send(.appResumedFromSleep)
                 resumeLastSession()
             }
         })
@@ -105,6 +114,7 @@ class SyncController: ObservableObject {
     }
 
     deinit {
+        brightnessDebounceTask?.cancel()
         systemObservers.forEach {
             NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
@@ -118,6 +128,7 @@ class SyncController: ObservableObject {
     private let syncActor = SyncActor()
     private var session: EntertainmentSession?
     private var sessionStateCancellable: AnyCancellable?
+    private var brightnessDebounceTask: Task<Void, Never>?
 
     /// The source the streaming loop reads each tick. Swap this to change auras mid-stream.
     private var activeSource: LightSource? = nil
@@ -136,8 +147,17 @@ class SyncController: ObservableObject {
 
     /// Start or hot-swap to a palette-based aura.
     func startAura(_ aura: Aura) {
+        if connectionStatus == .streaming {
+            let fromMode = activeAura != nil ? "aura" : "screenSync"
+            Analytics.send(.streamingModeSwitched(fromMode: fromMode, toMode: "aura"))
+        }
         activeAura = aura
+        Analytics.send(.auraSelected(
+            auraName: aura.name,
+            isBuiltin: BuiltinAuras.all.contains { $0.id == aura.id }
+        ))
         activeSource = PaletteSource(aura: aura)
+        Analytics.send(.streamingModeActivated(mode: "aura", detail: aura.name))
         Task { await syncActor.setSource(activeSource) }
         UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: StorageKey.lastMode)
         if let data = try? JSONEncoder().encode(aura) {
@@ -159,8 +179,13 @@ class SyncController: ObservableObject {
 
     /// Start or hot-swap to screen sync mode.
     func startScreenSync() {
+        if connectionStatus == .streaming {
+            let fromMode = activeAura != nil ? "aura" : "screenSync"
+            Analytics.send(.streamingModeSwitched(fromMode: fromMode, toMode: "screenSync"))
+        }
         activeAura = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
+        Analytics.send(.streamingModeActivated(mode: "screenSync", detail: ""))
         Task { await syncActor.setSource(activeSource) }
         UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: StorageKey.lastMode)
         if connectionStatus == .disconnected {

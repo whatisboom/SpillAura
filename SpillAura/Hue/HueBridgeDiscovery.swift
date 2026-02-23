@@ -8,6 +8,7 @@ final class HueBridgeDiscovery: NSObject, ObservableObject {
 
     private var netBrowser: NetServiceBrowser?
     private var resolvingServices: [NetService] = []
+    private var discoveryStartDate: Date?
 
     struct DiscoveredBridge: Identifiable, Equatable {
         let id = UUID()
@@ -17,6 +18,7 @@ final class HueBridgeDiscovery: NSObject, ObservableObject {
 
     func startDiscovery() {
         isSearching = true
+        discoveryStartDate = Date()
         discoveredBridges = []
         resolvingServices = []
 
@@ -68,6 +70,8 @@ extension HueBridgeDiscovery: NetServiceDelegate {
             let bridge = DiscoveredBridge(name: name, host: cleanHost)
             if !self.discoveredBridges.contains(bridge) {
                 self.discoveredBridges.append(bridge)
+                let elapsed = self.discoveryStartDate.map { Int(Date().timeIntervalSince($0) * 1000) } ?? 0
+                Analytics.send(.bridgeDiscoveryCompleted(method: "mdns", durationMs: elapsed))
             }
         }
     }

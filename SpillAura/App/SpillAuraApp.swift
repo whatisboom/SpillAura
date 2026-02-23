@@ -8,6 +8,10 @@ struct SpillAuraApp: App {
     @StateObject private var auraLibrary = AuraLibrary()
     @AppStorage(StorageKey.showMenuBarIcon) private var showMenuBarIcon = true
 
+    init() {
+        Analytics.initialize()
+    }
+
     var body: some Scene {
         MenuBarExtra(isInserted: $showMenuBarIcon) {
             MenuBarView()

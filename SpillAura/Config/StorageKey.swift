@@ -18,4 +18,5 @@ enum StorageKey {
     static let showDockIcon = "showDockIcon"
     static let showMenuBarIcon = "showMenuBarIcon"
     static let launchWindowHidden = "launchWindowHidden"
+    static let analyticsEnabled = "analyticsEnabled"
 }
