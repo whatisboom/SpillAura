@@ -66,6 +66,13 @@ class SyncController: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(speedMultiplier, forKey: StorageKey.speedMultiplier)
+            speedDebounceTask?.cancel()
+            let value = speedMultiplier
+            speedDebounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                Analytics.send(.speedMultiplierChanged(value: value))
+            }
             Task { await syncActor.setSpeedMultiplier(speedMultiplier) }
         }
     }
@@ -115,6 +122,7 @@ class SyncController: ObservableObject {
 
     deinit {
         brightnessDebounceTask?.cancel()
+        speedDebounceTask?.cancel()
         systemObservers.forEach {
             NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
@@ -129,6 +137,7 @@ class SyncController: ObservableObject {
     private var session: EntertainmentSession?
     private var sessionStateCancellable: AnyCancellable?
     private var brightnessDebounceTask: Task<Void, Never>?
+    private var speedDebounceTask: Task<Void, Never>?
 
     /// The source the streaming loop reads each tick. Swap this to change auras mid-stream.
     private var activeSource: LightSource? = nil

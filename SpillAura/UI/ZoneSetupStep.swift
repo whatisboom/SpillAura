@@ -40,7 +40,16 @@ struct ZoneSetupStep: View {
 
                     Spacer()
 
-                    Picker("", selection: $config.zones[i].region) {
+                    Picker("", selection: Binding(
+                        get: { config.zones[i].region },
+                        set: { newRegion in
+                            config.zones[i].region = newRegion
+                            Analytics.send(.zoneRegionAssigned(
+                                channelId: config.zones[i].channelID,
+                                region: newRegion.label
+                            ))
+                        }
+                    )) {
                         ForEach(ScreenRegion.allCases) { region in
                             Text(region.label).tag(region)
                         }
@@ -50,6 +59,7 @@ struct ZoneSetupStep: View {
 
                     if let onIdentify {
                         Button {
+                            Analytics.send(.channelIdentificationStarted(identifyAll: false))
                             onIdentify(config.zones[i].channelID, channelColor)
                         } label: {
                             Image(systemName: "lightbulb.fill")
@@ -73,5 +83,6 @@ struct ZoneSetupStep: View {
         for i in config.zones.indices {
             config.zones[i].region = regions[i]
         }
+        Analytics.send(.zonePresetApplied(preset: "\(preset)", channelCount: config.zones.count))
     }
 }

@@ -46,6 +46,7 @@ struct AuraControlView: View {
                             }
                         } else {
                             Button("Delete", role: .destructive) {
+                                Analytics.send(.auraDeleted(name: aura.name))
                                 auraLibrary.delete(aura)
                             }
                         }

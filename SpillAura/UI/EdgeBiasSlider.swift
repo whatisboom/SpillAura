@@ -3,6 +3,7 @@ import SwiftUI
 /// Reusable Edge Bias slider with Uniform/Edge labels.
 struct EdgeBiasSlider: View {
     @EnvironmentObject var syncController: SyncController
+    @State private var edgeBiasDebounceTask: Task<Void, Never>?
 
     var body: some View {
         HStack {
@@ -16,6 +17,13 @@ struct EdgeBiasSlider: View {
                         set: { newVal in
                             syncController.zoneConfig.edgeBias = newVal
                             syncController.saveZoneConfig()
+                            edgeBiasDebounceTask?.cancel()
+                            let value = newVal
+                            edgeBiasDebounceTask = Task {
+                                try? await Task.sleep(for: .milliseconds(500))
+                                guard !Task.isCancelled else { return }
+                                Analytics.send(.edgeBiasChanged(value: value))
+                            }
                         }
                     ),
                     in: 0...1

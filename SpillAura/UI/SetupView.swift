@@ -229,6 +229,10 @@ struct EntertainmentGroupPicker: View {
                         selectedGroupID = group.id
                         storedGroupID = group.id
                         storedChannelCount = group.channelCount
+                        Analytics.send(.entertainmentGroupSelected(
+                            groupName: group.name,
+                            channelCount: group.channelCount
+                        ))
                     }) {
                         HStack {
                             Image(systemName: selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")

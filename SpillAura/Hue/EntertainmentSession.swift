@@ -231,6 +231,7 @@ final class EntertainmentSession: ObservableObject {
             try? await Task.sleep(for: .seconds(15))
             guard let self, case .connecting = self.state else { return }
             print("[EntertainmentSession] DTLS handshake timeout")
+            Analytics.send(.dtlsHandshakeTimeout)
             conn.cancel()
         }
     }

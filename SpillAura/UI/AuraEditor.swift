@@ -113,7 +113,14 @@ struct AuraEditorSheet: View {
 
     private var header: some View {
         HStack {
-            Button("Cancel") { dismiss() }
+            Button("Cancel") {
+                Analytics.send(.auraEditorClosed(
+                    action: "cancel",
+                    isNew: existingID == nil,
+                    colorCount: colors.count
+                ))
+                dismiss()
+            }
                 .keyboardShortcut(.escape, modifiers: [])
             Spacer()
             Text(sheetTitle)
@@ -164,6 +171,7 @@ struct AuraEditorSheet: View {
     // MARK: - Actions
 
     private func save() {
+        let isNew = existingID == nil
         let aura = Aura(
             id: existingID ?? UUID(),
             name: name.trimmingCharacters(in: .whitespaces),
@@ -173,6 +181,18 @@ struct AuraEditorSheet: View {
             pattern: pattern,
             channelOffset: channelOffset
         )
+        if isNew {
+            Analytics.send(.auraCreated(
+                name: aura.name,
+                colorCount: colors.count,
+                pattern: pattern.rawValue
+            ))
+        }
+        Analytics.send(.auraEditorClosed(
+            action: "save",
+            isNew: isNew,
+            colorCount: colors.count
+        ))
         auraLibrary.save(aura)
         dismiss()
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 import ServiceManagement
 import ScreenCaptureKit
+import TelemetryDeck
 
 struct SettingsView: View {
     @EnvironmentObject var syncController: SyncController
@@ -69,7 +70,10 @@ struct SettingsView: View {
             .padding(24)
         }
         .frame(minWidth: 420, maxWidth: 420, minHeight: 400)
-        .onAppear { credentials = auth.loadFromKeychain() }
+        .onAppear {
+            credentials = auth.loadFromKeychain()
+            Analytics.send(.settingsWindowOpened)
+        }
     }
 }
 
@@ -94,6 +98,7 @@ private struct ScreenSyncSettingsSection: View {
                             set: { newVal in
                                 syncController.zoneConfig.displayID = newVal
                                 syncController.saveZoneConfig()
+                                Analytics.send(.displaySelected(monitorCount: availableDisplays.count))
                             }
                         )) {
                             ForEach(availableDisplays, id: \.id) { d in
@@ -175,7 +180,10 @@ private struct ZoneReconfigureSheet: View {
         }
         .padding(24)
         .frame(minWidth: 400)
-        .onAppear { syncController.identifyAll() }
+        .onAppear {
+            Analytics.send(.channelIdentificationStarted(identifyAll: true))
+            syncController.identifyAll()
+        }
         .onDisappear { syncController.stopIdentify() }
     }
 }
@@ -232,6 +240,7 @@ private struct BridgePairingSection: View {
 
             Button(discovery.isSearching ? "Searching…" : "Search Again") {
                 discovery.startDiscovery()
+                Analytics.send(.bridgeDiscoveryStarted)
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
@@ -289,21 +298,25 @@ private struct BridgePairingSection: View {
         }
         .onAppear {
             discovery.startDiscovery()
+            Analytics.send(.bridgeDiscoveryStarted)
         }
         .onDisappear { discovery.stopDiscovery() }
     }
 
     private func pair() async {
         pairingState = .pairing
+        Analytics.send(.pairingStarted)
         do {
             let creds = try await auth.pair(bridgeIP: selectedIP)
             onPaired(creds)
         } catch let error as AuthError {
             errorMessage = error.errorDescription
             pairingState = .failed
+            Analytics.send(.pairingFailed(reason: error.errorDescription ?? "unknown"))
         } catch {
             errorMessage = error.localizedDescription
             pairingState = .failed
+            Analytics.send(.pairingFailed(reason: error.localizedDescription))
         }
     }
 }
@@ -316,6 +329,9 @@ private struct AutoStartRow: View {
     var body: some View {
         Toggle("Start streaming automatically on launch", isOn: $autoStartOnLaunch)
             .help("Automatically resume the last active mode when SpillAura launches — no need to press Start manually.")
+            .onChange(of: autoStartOnLaunch) { _, enabled in
+                Analytics.send(.settingsChanged(setting: "autoStart", newValue: "\(enabled)"))
+            }
     }
 }
 
@@ -327,6 +343,9 @@ private struct LaunchHiddenRow: View {
     var body: some View {
         Toggle("Launch with window hidden", isOn: $launchWindowHidden)
             .help("Launch SpillAura silently to the menu bar without showing the main window.")
+            .onChange(of: launchWindowHidden) { _, enabled in
+                Analytics.send(.settingsChanged(setting: "launchHidden", newValue: "\(enabled)"))
+            }
     }
 }
 
@@ -345,6 +364,7 @@ private struct DockIconRow: View {
                 if !show {
                     NSApp.activate(ignoringOtherApps: true)
                 }
+                Analytics.send(.settingsChanged(setting: "dockIcon", newValue: "\(show)"))
             }
     }
 }
@@ -359,6 +379,9 @@ private struct MenuBarIconRow: View {
         Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
             .help("Show SpillAura in the menu bar. At least one of Dock or menu bar icon must remain visible.")
             .disabled(!showDockIcon)
+            .onChange(of: showMenuBarIcon) { _, enabled in
+                Analytics.send(.settingsChanged(setting: "menuBarIcon", newValue: "\(enabled)"))
+            }
     }
 }
 
@@ -377,6 +400,7 @@ private struct LoginItemRow: View {
                     } else {
                         try SMAppService.mainApp.unregister()
                     }
+                    Analytics.send(.settingsChanged(setting: "loginItem", newValue: "\(enabled)"))
                 } catch {
                     // Revert if registration fails (e.g., unsigned dev build)
                     isEnabled = !enabled
@@ -398,7 +422,12 @@ private struct AnalyticsToggleRow: View {
             Toggle("Send anonymous analytics", isOn: $analyticsEnabled)
                 .help("Help improve SpillAura by sharing anonymous usage data. No personal information is collected.")
                 .onChange(of: analyticsEnabled) { _, enabled in
-                    if enabled { Analytics.initialize() }
+                    if enabled {
+                        Analytics.initialize()
+                    } else {
+                        // Send directly — Analytics.send() guard would block after toggle flips
+                        TelemetryDeck.signal("analyticsOptedOut")
+                    }
                 }
             Text("Helps improve SpillAura. No personal data is collected.")
                 .font(.caption)
