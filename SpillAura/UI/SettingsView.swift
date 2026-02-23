@@ -57,6 +57,14 @@ struct SettingsView: View {
                     }
                     .padding(4)
                 }
+
+                // MARK: Privacy
+                GroupBox("Privacy") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        AnalyticsToggleRow()
+                    }
+                    .padding(4)
+                }
             }
             .padding(24)
         }
@@ -377,5 +385,24 @@ private struct LoginItemRow: View {
             .onAppear {
                 isEnabled = SMAppService.mainApp.status == .enabled
             }
+    }
+}
+
+// MARK: - AnalyticsToggleRow
+
+private struct AnalyticsToggleRow: View {
+    @AppStorage(StorageKey.analyticsEnabled) private var analyticsEnabled = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Send anonymous analytics", isOn: $analyticsEnabled)
+                .help("Help improve SpillAura by sharing anonymous usage data. No personal information is collected.")
+                .onChange(of: analyticsEnabled) { _, enabled in
+                    if enabled { Analytics.initialize() }
+                }
+            Text("Helps improve SpillAura. No personal data is collected.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }

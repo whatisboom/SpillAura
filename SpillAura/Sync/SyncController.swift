@@ -38,6 +38,7 @@ class SyncController: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(responsiveness.rawValue, forKey: StorageKey.syncResponsiveness)
+            Analytics.send(.settingsChanged(setting: "responsiveness", newValue: responsiveness.rawValue))
             (activeSource as? ScreenCaptureSource)?.updateResponsiveness(responsiveness)
         }
     }
