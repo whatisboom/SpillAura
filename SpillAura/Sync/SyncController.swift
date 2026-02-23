@@ -48,6 +48,7 @@ class SyncController: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(brightness, forKey: StorageKey.brightness)
+            Analytics.send(.brightnessChanged(value: Double(brightness)))
             Task { await syncActor.setBrightness(brightness) }
         }
     }
@@ -94,6 +95,7 @@ class SyncController: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self, wasStreamingBeforeSleep else { return }
                 wasStreamingBeforeSleep = false
+                Analytics.send(.appResumedFromSleep(sessionRecovered: true))
                 resumeLastSession()
             }
         })
@@ -136,8 +138,17 @@ class SyncController: ObservableObject {
 
     /// Start or hot-swap to a palette-based aura.
     func startAura(_ aura: Aura) {
+        if connectionStatus == .streaming {
+            let fromMode = activeAura != nil ? "aura" : "screenSync"
+            Analytics.send(.streamingModeSwitched(fromMode: fromMode, toMode: "aura"))
+        }
         activeAura = aura
+        Analytics.send(.auraSelected(
+            auraName: aura.name,
+            isBuiltin: BuiltinAuras.all.contains { $0.id == aura.id }
+        ))
         activeSource = PaletteSource(aura: aura)
+        Analytics.send(.streamingModeActivated(mode: "aura", detail: aura.name))
         Task { await syncActor.setSource(activeSource) }
         UserDefaults.standard.set(SyncMode.aura.rawValue, forKey: StorageKey.lastMode)
         if let data = try? JSONEncoder().encode(aura) {
@@ -159,8 +170,13 @@ class SyncController: ObservableObject {
 
     /// Start or hot-swap to screen sync mode.
     func startScreenSync() {
+        if connectionStatus == .streaming {
+            let fromMode = activeAura != nil ? "aura" : "screenSync"
+            Analytics.send(.streamingModeSwitched(fromMode: fromMode, toMode: "screenSync"))
+        }
         activeAura = nil
         activeSource = ScreenCaptureSource(config: zoneConfig, responsiveness: responsiveness)
+        Analytics.send(.streamingModeActivated(mode: "screenSync", detail: ""))
         Task { await syncActor.setSource(activeSource) }
         UserDefaults.standard.set(SyncMode.screen.rawValue, forKey: StorageKey.lastMode)
         if connectionStatus == .disconnected {
