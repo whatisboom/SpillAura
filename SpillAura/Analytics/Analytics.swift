@@ -80,7 +80,7 @@ enum Analytics {
     static func initialize() {
         UserDefaults.standard.register(defaults: [StorageKey.analyticsEnabled: true])
         guard UserDefaults.standard.bool(forKey: StorageKey.analyticsEnabled) else { return }
-        let config = TelemetryDeck.Config(appID: "YOUR-TELEMETRYDECK-APP-ID")
+        let config = TelemetryDeck.Config(appID: "F9B0EB7A-F247-47C0-9F85-CBDFAF8FEDE3")
         TelemetryDeck.initialize(config: config)
     }
 }
