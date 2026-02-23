@@ -8,7 +8,7 @@ enum AnalyticsSignal {
     case entertainmentSessionFailed(errorReason: String, phase: String)
     case entertainmentSessionReconnect(attemptNumber: Int, previousDurationSeconds: Int)
     case bridgeDiscoveryCompleted(method: String, durationMs: Int)
-    case appResumedFromSleep(sessionRecovered: Bool)
+    case appResumedFromSleep
 
     // Streaming Health
     case streamingModeActivated(mode: String, detail: String)
@@ -51,8 +51,8 @@ enum AnalyticsSignal {
             ["attemptNumber": "\(attemptNumber)", "previousDurationSeconds": "\(previousDurationSeconds)"]
         case .bridgeDiscoveryCompleted(let method, let durationMs):
             ["method": method, "durationMs": "\(durationMs)"]
-        case .appResumedFromSleep(let sessionRecovered):
-            ["sessionRecovered": "\(sessionRecovered)"]
+        case .appResumedFromSleep:
+            [:]
         case .streamingModeActivated(let mode, let detail):
             ["mode": mode, "detail": detail]
         case .streamingModeSwitched(let fromMode, let toMode):

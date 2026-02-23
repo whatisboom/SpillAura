@@ -102,7 +102,7 @@ class SyncController: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self, wasStreamingBeforeSleep else { return }
                 wasStreamingBeforeSleep = false
-                Analytics.send(.appResumedFromSleep(sessionRecovered: true))
+                Analytics.send(.appResumedFromSleep)
                 resumeLastSession()
             }
         })
