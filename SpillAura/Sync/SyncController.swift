@@ -49,7 +49,13 @@ class SyncController: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(brightness, forKey: StorageKey.brightness)
-            Analytics.send(.brightnessChanged(value: Double(brightness)))
+            brightnessDebounceTask?.cancel()
+            let value = Double(brightness)
+            brightnessDebounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                Analytics.send(.brightnessChanged(value: value))
+            }
             Task { await syncActor.setBrightness(brightness) }
         }
     }
@@ -108,6 +114,7 @@ class SyncController: ObservableObject {
     }
 
     deinit {
+        brightnessDebounceTask?.cancel()
         systemObservers.forEach {
             NSWorkspace.shared.notificationCenter.removeObserver($0)
         }
@@ -121,6 +128,7 @@ class SyncController: ObservableObject {
     private let syncActor = SyncActor()
     private var session: EntertainmentSession?
     private var sessionStateCancellable: AnyCancellable?
+    private var brightnessDebounceTask: Task<Void, Never>?
 
     /// The source the streaming loop reads each tick. Swap this to change auras mid-stream.
     private var activeSource: LightSource? = nil
