@@ -26,5 +26,8 @@ build/
 .build/
 .swiftpm/
 
+# Worktrees
+.worktrees/
+
 # CocoaPods (not used, but just in case)
 Pods/
