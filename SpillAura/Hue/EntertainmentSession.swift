@@ -31,6 +31,8 @@ final class EntertainmentSession: ObservableObject {
     private var connection: NWConnection?
     private var reconnectAttempts: Int = 0
     private static let maxReconnectAttempts = 3
+    private var sessionStartDate: Date?
+    private var totalReconnects: Int = 0
 
     // MARK: - Init
 
@@ -83,6 +85,10 @@ final class EntertainmentSession: ObservableObject {
                 try await Task.sleep(for: .milliseconds(500))
                 self.openDTLS()
             } catch {
+                Analytics.send(.entertainmentSessionFailed(
+                    errorReason: error.localizedDescription,
+                    phase: "activating"
+                ))
                 self.lastError = "Activation failed: \(error.localizedDescription)"
                 self.state = .idle
             }
@@ -110,6 +116,13 @@ final class EntertainmentSession: ObservableObject {
             } catch {
                 print("[EntertainmentSession] deactivation REST call failed: \(error)")
             }
+            let duration = self.sessionStartDate.map { Int(Date().timeIntervalSince($0)) } ?? 0
+            Analytics.send(.entertainmentSessionEnded(
+                durationSeconds: duration,
+                reconnectCount: self.totalReconnects
+            ))
+            self.sessionStartDate = nil
+            self.totalReconnects = 0
             self.state = .idle
         }
     }
@@ -230,6 +243,11 @@ final class EntertainmentSession: ObservableObject {
                 sender = HueSender(connection: conn, groupID: groupID)
             }
             state = .streaming
+            sessionStartDate = Date()
+            Analytics.send(.entertainmentSessionStarted(
+                channelCount: channelCount,
+                groupId: groupID
+            ))
 
         case .failed(let error):
             print("[EntertainmentSession] connection failed: \(error)")
@@ -239,8 +257,18 @@ final class EntertainmentSession: ObservableObject {
             if reconnectAttempts < Self.maxReconnectAttempts && state != .deactivating {
                 reconnectAttempts += 1
                 state = .reconnecting(attempt: reconnectAttempts)
+                totalReconnects += 1
+                let elapsed = sessionStartDate.map { Int(Date().timeIntervalSince($0)) } ?? 0
+                Analytics.send(.entertainmentSessionReconnect(
+                    attemptNumber: reconnectAttempts,
+                    previousDurationSeconds: elapsed
+                ))
                 scheduleReconnect()
             } else {
+                Analytics.send(.entertainmentSessionFailed(
+                    errorReason: error.localizedDescription,
+                    phase: "streaming"
+                ))
                 lastError = "Connection failed: \(error.localizedDescription)"
                 state = .deactivating
                 deactivateREST()
