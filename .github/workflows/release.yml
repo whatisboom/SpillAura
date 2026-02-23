@@ -54,22 +54,28 @@ jobs:
             DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_NAME"
 
+      - name: Install create-dmg
+        run: brew install create-dmg
+
       - name: Create DMG
         run: |
           TAG="${{ github.ref_name }}"
           APP_PATH="build/SpillAura.xcarchive/Products/Applications/SpillAura.app"
           DMG_NAME="SpillAura-${TAG}.dmg"
 
-          mkdir -p dmg_staging
-          cp -r "$APP_PATH" dmg_staging/SpillAura.app
-          ln -s /Applications dmg_staging/Applications
-
-          hdiutil create \
-            -volname "SpillAura" \
-            -srcfolder dmg_staging \
-            -ov \
-            -format UDZO \
-            "$DMG_NAME"
+          # create-dmg exits 2 if background is skipped; treat as success
+          create-dmg \
+            --volname "SpillAura" \
+            --window-size 660 440 \
+            --icon-size 128 \
+            --icon "SpillAura.app" 180 220 \
+            --app-drop-link 480 220 \
+            --background "dmg/background.png" \
+            --hide-extension "SpillAura.app" \
+            --no-internet-enable \
+            "$DMG_NAME" \
+            "$APP_PATH" \
+          || test $? -eq 2
 
           echo "DMG_NAME=$DMG_NAME" >> $GITHUB_ENV
 
