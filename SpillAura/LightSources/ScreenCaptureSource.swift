@@ -88,8 +88,14 @@ final class ScreenCaptureSource: NSObject, LightSource, SCStreamOutput, SCStream
             try newStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: frameQueue)
             try await newStream.startCapture()
             stream = newStream
+            Analytics.send(.screenCaptureStarted(
+                displayId: targetID,
+                zoneCount: config.zones.count,
+                edgeBias: config.edgeBias
+            ))
         } catch {
             print("[ScreenCaptureSource] Failed to start capture: \(error)")
+            Analytics.send(.screenCaptureFailed(errorDescription: error.localizedDescription))
         }
     }
 
