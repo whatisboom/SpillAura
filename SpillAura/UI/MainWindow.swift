@@ -133,5 +133,6 @@ struct MainWindow: View {
                     .help("Stop streaming. Your lights will return to their previous state.")
             }
         }
+        .frame(minHeight: 28)
     }
 }
